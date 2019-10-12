@@ -1,7 +1,8 @@
+""" ae_console unit tests. """
 from typing import cast
 
 import pytest
-from ae.tests.conftest import delete_files
+from .conftest import delete_files
 
 import datetime
 import logging
@@ -109,6 +110,7 @@ class TestAeLogging:
 
     def test_threaded_sub_app_logging(self, restore_app_env):
         def sub_app_po():
+            """ sub app thread function """
             nonlocal sub
             sub = SubApp('test_sub_app_thread', app_name=sp)
             sub.init_logging(log_file_name=sp + log_file)
@@ -345,6 +347,7 @@ class TestConsoleAppBasics:
 
     def test_shutdown_basics(self, restore_app_env):
         def thr():
+            """ thread """
             while running:
                 pass
 

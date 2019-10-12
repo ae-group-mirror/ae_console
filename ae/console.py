@@ -193,8 +193,6 @@ with timestamp). The supported config option values are documented :data:`here <
 
 The value of the second pre-defined config option `logFile` specifies the log file path/file_name, which can
 be abbreviated on the command line with the short option -L.
-
-
 """
 import os
 import datetime
@@ -205,14 +203,15 @@ from typing import Any, Callable, Dict, Iterable, Optional, Type, Sequence
 from configparser import ConfigParser
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
+# noinspection PyProtectedMember
 from ae.core import (
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, DATE_TIME_ISO, DATE_ISO,
     main_app_instance, ori_std_out, sys_env_text, _logger,
-    AppBase
+    AppBase)
 from ae.literal import Literal
 
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
