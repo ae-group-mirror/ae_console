@@ -211,7 +211,7 @@ from ae.core import (
 from ae.literal import Literal
 
 
-__version__ = '0.0.7'
+__version__ = '0.0.8'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension

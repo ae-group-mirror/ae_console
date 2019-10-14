@@ -10,7 +10,10 @@ from argparse import ArgumentError
 from typing import cast
 
 import pytest
-from .conftest import delete_files
+try:
+    from conftest import delete_files
+except ImportError:
+    from .conftest import delete_files
 
 
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_TIMESTAMPED, DATE_ISO, DATE_TIME_ISO, MAX_NUM_LOG_FILES,
