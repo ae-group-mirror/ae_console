@@ -1,9 +1,4 @@
 """ ae_console unit tests. """
-from typing import cast
-
-import pytest
-from .conftest import delete_files
-
 import datetime
 import logging
 import os
@@ -12,6 +7,11 @@ import threading
 import time
 
 from argparse import ArgumentError
+from typing import cast
+
+import pytest
+from .conftest import delete_files
+
 
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_TIMESTAMPED, DATE_ISO, DATE_TIME_ISO, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
