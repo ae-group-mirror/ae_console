@@ -2,7 +2,7 @@
 # THIS FILE IS EXCLUSIVELY MAINTAINED IN THE AE ROOT PACKAGE. ANY CHANGES SHOULD BE DONE THERE.
 # All changes will be deployed automatically to all the portions of this namespace package.
 -->
-# Version {package_version} Of {package_name} Portion Of ae Namespace Package
+# Version 0.0.5 Of ae_console Portion Of ae Namespace Package
 
 The portions (modules and sub-packages) of the Application Environment for Python are within
 the `ae` namespace and are providing helper methods and classes for to develop
@@ -14,7 +14,7 @@ full-featured applications with Python.
 For to only use this portion in your code type in your command shell:
  
 ```shell script
-pip install {pip_name}
+pip install ae-console
 ```
 
 If you instead want to contribute to this portion then first fork this repository,
@@ -33,5 +33,5 @@ the setup extras key `dev` in the above command with `tests` or `docs` respectiv
 ## Namespace Portion Documentation
 
 More info on the features and usage of this portion are available at
-[ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/{import_name}.html#module-{import_name}
-"{package_name} documentation").
+[ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/ae.console.html#module-ae.console
+"ae_console documentation").
