@@ -5,6 +5,7 @@
       <w>caplog</w>
       <w>capsys</w>
       <w>configparser</w>
+      <w>conftest</w>
       <w>fnam</w>
       <w>getcwd</w>
       <w>meth</w>

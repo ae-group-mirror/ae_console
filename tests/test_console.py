@@ -18,7 +18,25 @@ except ImportError:
 
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_TIMESTAMPED, DATE_ISO, DATE_TIME_ISO, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
-from ae.console import INI_EXT, ConsoleApp
+from ae.console import INI_EXT, MAIN_SECTION_DEF, ConsoleApp
+
+
+@pytest.fixture
+def config_fna_vna_vva(request):
+    """ prepare config test files """
+    def _setup_and_teardown(file_name='test_config.cfg', var_name='test_config_var', var_value='test_value'):
+        if os.path.sep not in file_name:
+            file_name = os.path.join(os.getcwd(), file_name)
+        with open(file_name, 'w') as f:
+            f.write(f"[{MAIN_SECTION_DEF}]\n{var_name} = {var_value}")
+
+        def _tear_down():               # using yield instead of finalizer does not execute the teardown part
+            os.remove(file_name)
+        request.addfinalizer(_tear_down)
+
+        return file_name, var_name, var_value
+
+    return _setup_and_teardown
 
 
 class TestAeLogging:
@@ -62,11 +80,29 @@ class TestAeLogging:
     def test_app_instances_reset1(self):
         assert main_app_instance() is None
 
+    def test_logging_params_dict_from_cfg(self, config_fna_vna_vva, restore_app_env):
+        file_name, var_name, var_val = config_fna_vna_vva(var_name='logging_params',
+                                                          var_value=dict(log_file_name='test_log_from_cfg.log'))
+        cae = ConsoleApp('test_ae_logging_params_dict_from_ini', additional_cfg_files=[file_name])
+        cfg_val = cae.get_var(var_name)
+        try:
+            assert cfg_val == var_val
+            assert cae._log_file_name == cfg_val['log_file_name']
+            logging.shutdown()
+        finally:
+            assert delete_files(cfg_val['log_file_name']) == 1
+
+    def test_app_instances_reset2(self):
+        assert main_app_instance() is None
+
     def test_invalid_log_file_name(self, restore_app_env):
         log_file = ':/:invalid:/:'
         with pytest.raises(FileNotFoundError):
             ConsoleApp('test_invalid_log_file_name', log_file_name=log_file)
         assert not os.path.exists(log_file)
+
+    def test_app_instances_reset3(self):
+        assert main_app_instance() is None
 
     def test_log_file_flush(self, restore_app_env, sys_argv_app_key_restore):
         log_file = 'test_ae_log_flush.log'
@@ -139,30 +175,30 @@ class TestAeLogging:
             assert os.path.exists(sp + log_file)
             assert os.path.exists(mp + log_file)
         finally:
-            contents = delete_files(sp + log_file, ret_type='contents')
-            assert len(contents)
-            assert mp + tst_out + "_1" in contents[0]
-            assert mp + tst_out + "_2" in contents[0]
-            assert sp + tst_out in contents[0]
             contents = delete_files(mp + log_file, ret_type='contents')
             assert len(contents)
             assert mp + tst_out + "_1" in contents[0]
             assert mp + tst_out + "_2" in contents[0]
             assert sp + tst_out not in contents[0]
+            contents = delete_files(sp + log_file, ret_type='contents')
+            assert len(contents)
+            assert mp + tst_out + "_1" in contents[0]
+            assert mp + tst_out + "_2" in contents[0]
+            assert sp + tst_out in contents[0]
 
     def test_exception_log_file_flush(self, restore_app_env):
         cae = ConsoleApp('test_exception_log_file_flush')
         # cause/provoke _append_eof_and_flush_file() exceptions for coverage by passing any other non-stream object
         cae._append_eof_and_flush_file(cast('TextIO', None), 'invalid stream')
 
-    def test_app_instances_reset2(self):
+    def test_app_instances_reset_fin(self):
         assert main_app_instance() is None
 
 
 class TestPythonLogging:
     """ test python logging module support
     """
-    def test_logging_params_dict_basic_from_ini(self, config_fna_vna_vva, restore_app_env):
+    def test_logging_params_dict_basic_from_cfg(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, var_val = config_fna_vna_vva(var_name='py_logging_params',
                                                           var_value=dict(version=1,
                                                                          disable_existing_loggers=False))
@@ -315,10 +351,18 @@ class TestConsoleAppBasics:
         cae = ConsoleApp('test_add_opt')
         cae.add_opt('test_opt', 'test_opt_description', 'test_opt_value', short_opt='')
 
-    def test_set_opt(self, restore_app_env):
+    def test_set_opt(self, restore_app_env, sys_argv_app_key_restore):
+        tst_val = 'test_init_value'
         cae = ConsoleApp('test_set_opt')
-        cae.add_opt('test_opt', 'test_opt_description', 'test_init_value')
-        cae.set_opt('test_opt', 'test_val', save_to_config=False)
+        cae.add_opt('test_opt', 'test_opt_description', tst_val)
+        sys.argv = ['tso_pseudo_arg']
+        assert cae.get_opt('test_opt') == tst_val
+        tst_val = 'test_value'
+        cae.set_opt('test_opt', tst_val, save_to_config=False)
+        assert cae.get_opt('test_opt') == tst_val
+
+        cae.set_opt('debugLevel', DEBUG_LEVEL_TIMESTAMPED, save_to_config=False)
+        assert cae.get_opt('debugLevel') == DEBUG_LEVEL_TIMESTAMPED
 
     def test_add_argument(self, restore_app_env):
         cae = ConsoleApp('test_add_argument')
@@ -337,7 +381,7 @@ class TestConsoleAppBasics:
 
     def test_sys_env_id(self, capsys, restore_app_env, sys_argv_app_key_restore):
         sei = 'tSt'
-        cae = ConsoleApp('test_sys_env_id', sys_env_id=sei)
+        cae = ConsoleApp('test_sys_env_id', sys_env_id=sei, debug_level=DEBUG_LEVEL_TIMESTAMPED)
         assert cae.sys_env_id == sei
         cae.po(sei)     # increase coverage
         out, err = capsys.readouterr()
@@ -345,8 +389,8 @@ class TestConsoleAppBasics:
 
         # special case for error code path coverage
         ca2 = ConsoleApp('test_sys_env_id_COPY')
-        ca2.sys_env_id = ''
-        assert ca2.get_opt('debugLevel')
+        assert ca2.sys_env_id == ''
+        assert not ca2.get_opt('debugLevel')
 
     def test_shutdown_basics(self, restore_app_env):
         def thr():

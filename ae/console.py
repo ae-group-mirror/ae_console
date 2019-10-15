@@ -6,6 +6,9 @@ The :class:`ConsoleApp` allows your application the easy declaration of command 
 arguments and options. It will additionally extend your application with dynamically
 configurable logging and debugging features.
 
+:class:`ConsoleApp` inherits from the :class:`~core.AppBase` application base class.
+The attributes and methods of the :class:`~core.AppBase` are documented in the
+:mod:`docstrings of the core module <ae.core>`.
 
 Basic Usage
 -----------
@@ -15,15 +18,18 @@ Basic Usage
 
 At the top of your python application main file/module create an instance of the class :class:`ConsoleApp`::
 
-    '' '' ''  docstring of your application main module  '' '' ''
-    from console import ConsoleApp
+    \"\"\" module docstring \"\"\"
+    from ae.console import ConsoleApp
 
     __version__ = '1.2.3'
 
     ca = ConsoleApp()
 
-In the above example the :class:`ConsoleApp` instance will automatically use the docstring of your application
-main module as application title and the string in the module variable __version___ as application version.
+    assert ca.app_title == "module docstring"
+    assert ca.app_version == '1.2.3'
+
+In the above example the :class:`ConsoleApp` instance will automatically collect the docstring of the
+module as application title and the string in the module variable __version___ as application version.
 Alternatively you can specify your application title and version string by passing them as the first two
 arguments (:paramref:`~ConsoleApp.app_title` and :paramref:`~ConsoleApp.app_version`)
 to the instantiation call of :class:`ConsoleApp`.
@@ -211,7 +217,7 @@ from ae.core import (
 from ae.literal import Literal
 
 
-__version__ = '0.0.8'
+__version__ = '0.0.9'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -372,7 +378,7 @@ class ConsoleApp(AppBase):
         """
         # ### THIS METHOD DEF GOT CODED HERE ONLY FOR SPHINX DOCUMENTATION BUILD PURPOSES ###
         # .. this method get never called because gets overwritten with self._arg_parser.add_argument in __init__().
-        self._arg_parser.add_argument(*args, **kwargs)
+        self._arg_parser.add_argument(*args, **kwargs)  # pragma: no cover - will never be executed
 
     add_arg = add_argument      #: alias of method :meth:`.add_argument`
 
