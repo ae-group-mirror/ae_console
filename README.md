@@ -48,6 +48,6 @@ More info on the features and usage of this portion are available at
 [ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/ae.console.html#module-ae.console
 "ae_console documentation").
 
-<!-- Common files version 0.0.21 deployed (with 0.0.21)
-     to the ae_console module version 0.0.11.
+<!-- Common files version 0.0.22 deployed (with 0.0.22)
+     to the ae_console module version 0.0.13.
 -->
