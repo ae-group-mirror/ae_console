@@ -4,9 +4,18 @@
 -->
 # console Portion Of ae Namespace Package
 
-The portions (modules and sub-packages) of the Application Environment for Python are within
+>The portions (modules and sub-packages) of the Application Environment for Python are within
 the `ae` namespace and are providing helper methods and classes for to develop
 full-featured applications with Python.
+
+[![PyPIVersion](https://img.shields.io/pypi/v/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
+[![GitLabPipeline](https://img.shields.io/gitlab/pipeline/ae-group/ae_console/master?logo=python)](https://gitlab.com/ae-group/ae_console)
+[![PyPIImplementation](https://img.shields.io/pypi/implementation/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
+[![PyPIPyVersions](https://img.shields.io/pypi/pyversions/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
+[![PyPIWheel](https://img.shields.io/pypi/wheel/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
+[![PyPIFormat](https://img.shields.io/pypi/format/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
+[![PyPIStatus](https://img.shields.io/pypi/status/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
+[![PyPIDownloads](https://img.shields.io/pypi/dm/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
 
 
 ## Installation

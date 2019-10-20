@@ -210,14 +210,14 @@ from configparser import ConfigParser
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 # noinspection PyProtectedMember
-from ae.core import (
+from ae.core import (               # type: ignore  # for mypy
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, DATE_TIME_ISO, DATE_ISO,
     main_app_instance, ori_std_out, sys_env_text, _logger,
     AppBase)
-from ae.literal import Literal
+from ae.literal import Literal      # type: ignore
 
 
-__version__ = '0.0.11'
+__version__ = '0.0.12'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -301,8 +301,8 @@ class ConsoleApp(AppBase):
             self._parsed_args: Optional[Namespace] = None
             """ used for to retrieve command line args and also as a flag (if is not None) for to ensure that
             the command line arguments get re-parsed if :meth:`~ConsoleApp.add_option` get called after a first
-            method call which is initiating the re-fetch of the args and INI/cfg vars 
-            (like e.g. :meth:`~ConsoleApp.get_option` or :meth:`ConsoleApp.debug_out`). 
+            method call which is initiating the re-fetch of the args and INI/cfg vars
+            (like e.g. :meth:`~ConsoleApp.get_option` or :meth:`ConsoleApp.debug_out`).
             """
         self.load_cfg_files()
 
@@ -315,7 +315,9 @@ class ConsoleApp(AppBase):
         formatter_class = formatter_class or HelpFormatter
         self._arg_parser: ArgumentParser = ArgumentParser(
             description=self.app_title, epilog=epilog, formatter_class=formatter_class)   #: ArgumentParser instance
-        self.add_argument = self._arg_parser.add_argument       #: redirect this method to our ArgumentParser instance
+        # changed for to pass mypy checks (current workarounds are use setattr or add type: ignore:
+        # self.add_argument = self._arg_parser.add_argument       #: redirect this method to our ArgumentParser instance
+        setattr(self, 'add_argument', self._arg_parser.add_argument)
 
         # create pre-defined config options
         self.add_opt('debugLevel', "Verbosity of debug messages send to console and log files", debug_level, 'D',
@@ -514,10 +516,10 @@ class ConsoleApp(AppBase):
         """
         self._parsed_args = self._arg_parser.parse_args()
 
-        for name in self.cfg_options.keys():
-            self.cfg_options[name].value = getattr(self._parsed_args, name)
+        for name, cfg_opt in self.cfg_options.items():
+            cfg_opt.value = getattr(self._parsed_args, name)
             if name in self.cfg_opt_choices:
-                for given_value in self.cfg_options[name].value:
+                for given_value in cfg_opt.value:
                     if self._cfg_opt_val_stripper:
                         given_value = self._cfg_opt_val_stripper(given_value)
                     allowed_values = self.cfg_opt_choices[name]
@@ -646,7 +648,8 @@ class ConsoleApp(AppBase):
 
         :return:    True if the content of the main config file got modified/changed.
         """
-        return self._main_cfg_mod_time and os.path.getmtime(self._main_cfg_fnam) > self._main_cfg_mod_time
+        return os.path.getmtime(self._main_cfg_fnam) > self._main_cfg_mod_time \
+            if self._main_cfg_fnam and self._main_cfg_mod_time else False
 
     def get_variable(self, name: str, section: Optional[str] = None, default_value: Optional[Any] = None,
                      cfg_parser: Optional[ConfigParser] = None, value_type: Optional[Type] = None) -> Any:
@@ -668,9 +671,9 @@ class ConsoleApp(AppBase):
         if name in self.cfg_options and section in (MAIN_SECTION_DEF, '', None):
             val = self.cfg_options[name].value
         else:
-            s = Literal(literal_or_value=default_value, value_type=value_type, name=name)  # used for conversion/eval
-            s.value = self._get_cfg_parser_val(name, section=section, default_value=s.value, cfg_parser=cfg_parser)
-            val = s.value
+            lit = Literal(literal_or_value=default_value, value_type=value_type, name=name)  # used for conversion/eval
+            lit.value = self._get_cfg_parser_val(name, section=section, default_value=lit.value, cfg_parser=cfg_parser)
+            val = lit.value
         return val
 
     get_var = get_variable      #: alias of method :meth:`.get_variable`
@@ -701,7 +704,7 @@ class ConsoleApp(AppBase):
         if name in self.cfg_options and section in (MAIN_SECTION_DEF, '', None):
             self.cfg_options[name].value = value
 
-        if not os.path.isfile(cfg_fnam):
+        if not cfg_fnam or not os.path.isfile(cfg_fnam):
             return msg + f"INI/CFG file {cfg_fnam} not found." \
                          f" Please set the ini/cfg variable {section}/{name} manually to the value {value!r}"
 
@@ -709,13 +712,18 @@ class ConsoleApp(AppBase):
         with config_lock:
             try:
                 cfg_parser = ConfigParser()     # not using self._cfg_parser for to put INI vars from other files
-                cfg_parser.optionxform = str    # or use 'lambda option: option' to have case sensitive var names
+                # set optionxform to have case sensitive var names (or use 'lambda option: option')
+                # mypy V 0.740 bug - see mypy issue #5062: adding pragma "type: ignore" breaks PyCharm (showing
+                # .. inspection warning "Non-self attribute could not be type-hinted"), but
+                # .. also cast(Callable[[Arg(str, 'option')], str], str) and # type: ... is not working
+                # .. (because Arg is not defined)
+                setattr(cfg_parser, 'optionxform', str)
                 cfg_parser.read(cfg_fnam)
                 if isinstance(value, (dict, list, tuple)):
                     str_val = "'''" + repr(value).replace('%', '%%') + "'''"
-                elif type(value) is datetime.datetime:
+                elif isinstance(value, datetime.datetime):
                     str_val = value.strftime(DATE_TIME_ISO)
-                elif type(value) is datetime.date:
+                elif isinstance(value, datetime.date):
                     str_val = value.strftime(DATE_ISO)
                 else:
                     str_val = str(value)    # using str() here because repr() will put high-commas around string values

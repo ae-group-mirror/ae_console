@@ -9,8 +9,10 @@
       <w>fnam</w>
       <w>getcwd</w>
       <w>meth</w>
+      <w>mypy</w>
       <w>paramref</w>
       <w>pyinstaller</w>
+      <w>pylint</w>
       <w>pytest</w>
       <w>readouterr</w>
       <w>sihot</w>
