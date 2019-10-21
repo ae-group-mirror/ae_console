@@ -6,8 +6,8 @@ The :class:`ConsoleApp` allows your application the easy declaration of command 
 arguments and options. It will additionally extend your application with dynamically
 configurable logging and debugging features.
 
-:class:`ConsoleApp` inherits from the :class:`~core.AppBase` application base class.
-The attributes and methods of the :class:`~core.AppBase` are documented in the
+:class:`ConsoleApp` inherits from the :class:`~ae.core.AppBase` application base class.
+The attributes and methods of the :class:`~ae.core.AppBase` are documented in the
 :mod:`docstrings of the core module <ae.core>`.
 
 Basic Usage
@@ -30,8 +30,8 @@ At the top of your python application main file/module create an instance of the
 
 In the above example the :class:`ConsoleApp` instance will automatically collect the docstring of the
 module as application title and the string in the module variable __version___ as application version.
-Alternatively you can specify your application title and version string by passing them as the first two
-arguments (:paramref:`~ConsoleApp.app_title` and :paramref:`~ConsoleApp.app_version`)
+Alternatively you can specify your application title and version string by passing them (into the
+arguments :paramref:`~ConsoleApp.app_title` and :paramref:`~ConsoleApp.app_version`)
 to the instantiation call of :class:`ConsoleApp`.
 
 .. _app-name:
@@ -141,10 +141,10 @@ The default value of a config variable can also be set/changed directly from wit
 by calling the :meth:`~ConsoleApp.set_variable` method.
 
 The following pre-defined config variables in the :ref:`main config section <config-main-section>` are recognized
-by :mod:`this module <ae.console>` as well as by :mod:`ae.core`.
+by :mod:`this module <.console>` as well as by :mod:`.core`.
 
 * `logging_params` : general logging configuration parameters (py and ae logging)
-  - :meth:`documented here <core.AppBase.init_logging>`.
+  - :meth:`documented here <.core.AppBase.init_logging>`.
 * ``py_logging_params`` : configuration parameters for to activate python logging
   - :meth:`documented here <logging.conf.dictConfig>`.
 * `logFile` : log file name for ae logging (this is also a config option - set-able as command line arg).
@@ -169,7 +169,7 @@ The order of this default value search is documented :meth:`here <ConsoleApp.get
 For to query the resulting value of a config option, simply call the :meth:`~ConsoleApp.get_option` method
 of your :class:`ConsoleApp` instance::
 
-    option_value = cae.get_option('option_id')
+    option_value = c.get_option('option_id')
 
 For to read the default value of a config option or variable directly from the available configuration files use the
 :meth:`~ConsoleApp.get_variable` method instead. The default value of a config option or variable can also be
@@ -184,7 +184,7 @@ Config Value Types
 ..................
 
 A configuration options can be of any type. With the :paramref:`~ConsoleApp.add_option.value` argument and
-:attr:`special encapsulated strings <ae.literal.Literal.value>` you're able to specify any type
+:attr:`special encapsulated strings <.literal.Literal.value>` you're able to specify any type
 for your config options and variables (like dict/list/tuple/datetime/... or any other object type).
 
 
@@ -195,7 +195,7 @@ Pre-defined Configuration Options
 
 For a more verbose output you can specify on the command line or in one of your configuration files
 the pre-defined config option `debugLevel` (or as short option -D) with a value of 2 (for verbose) or 3 (verbose and
-with timestamp). The supported config option values are documented :data:`here <ae.core.DEBUG_LEVELS>`.
+with timestamp). The supported config option values are documented :data:`here <.core.DEBUG_LEVELS>`.
 
 The value of the second pre-defined config option `logFile` specifies the log file path/file_name, which can
 be abbreviated on the command line with the short option -L.
@@ -217,7 +217,7 @@ from ae.core import (               # type: ignore  # for mypy
 from ae.literal import Literal      # type: ignore
 
 
-__version__ = '0.0.15'
+__version__ = '0.0.16'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -243,7 +243,7 @@ class ConsoleApp(AppBase):
       and get then used in the evaluation of :ref:`evaluable config option values <evaluable-literal-formats>`.
     * :attr:`_cfg_files`            iterable of config file names that are getting loaded and parsed (specify
       additional configuration/INI files via the :paramref:`~ConsoleApp.additional_cfg_files` argument).
-    * :attr:`cfg_options`           pre-/user-defined options (dict of :class:`~ae.literal.Literal` instances defined
+    * :attr:`cfg_options`           pre-/user-defined options (dict of :class:`~.literal.Literal` instances defined
       via :meth:`~ConsoleApp.add_option`).
     * :attr:`_cfg_parser`           ConfigParser instance.
     * :attr:`_main_cfg_fnam`        main config file name.
@@ -278,7 +278,7 @@ class ConsoleApp(AppBase):
                                         onto ArgumentParser instantiation).
         :param logging_params:          all other kwargs are interpreted as logging configuration values - the
                                         supported kwargs are all the method kwargs of
-                                        :meth:`~core.AppBase.init_logging`.
+                                        :meth:`~.core.AppBase.init_logging`.
         """
         super().__init__(app_title=app_title, app_name=app_name, app_version=app_version, sys_env_id=sys_env_id,
                          debug_level=debug_level, multi_threading=multi_threading, suppress_stdout=suppress_stdout)
@@ -414,8 +414,8 @@ class ConsoleApp(AppBase):
         :param multiple:    True if option can be added multiple times to command line (optional, default=False).
 
         The value of a config option can be of any type and gets represented by an instance of the
-        :class:`~ae.literal.Literal` class. Supported value types and literals are documented
-        :attr:`here <ae.literal.Literal.value>`.
+        :class:`~.literal.Literal` class. Supported value types and literals are documented
+        :attr:`here <.literal.Literal.value>`.
 
         This method has an alias named :meth:`add_opt`.
         """
@@ -742,17 +742,17 @@ class ConsoleApp(AppBase):
         """ special debug version of :func:`builtin print() function <print>`.
 
         This method will print-out the passed objects only if the :attr:`current debug level
-        <ae.core.AppBase.debug_level>` of this app instance is higher than the value passed into the
+        <.core.AppBase.debug_level>` of this app instance is higher than the value passed into the
         :paramref:`~debug_out.minimum_debug_level` argument. In this case the print-out will be
-        delegated onto the :meth:`~ae.core.AppBase.print_out` method of the :class:`~ae.core.AppBase` class.
+        delegated onto the :meth:`~.core.AppBase.print_out` method of the :class:`~.core.AppBase` class.
 
         :param objects:                 objects to be printed out.
         :param minimum_debug_level:     minimum debug level for to print the passed objects.
-        :param kwargs:                  The :paramref:`~ae.core.AppBase.print_out.file` argument is documented
-                                        at the :meth:`~ae.core.AppBase.print_out` method of the
-                                        :class:`~ae.core.AppBase` class. All other supported kwargs of this method
-                                        are documented at the :func:`print_out() function <ae.core.print_out>`
-                                        of the :mod:`~ae.core` module.
+        :param kwargs:                  The :paramref:`~.core.AppBase.print_out.file` argument is documented
+                                        at the :meth:`~.core.AppBase.print_out` method of the
+                                        :class:`~.core.AppBase` class. All other supported kwargs of this method
+                                        are documented at the :func:`print_out() function <~.core.print_out>`
+                                        of the :mod:`~.core` module.
 
         This method has an alias named :meth:`.dpo`.
         """
