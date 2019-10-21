@@ -10,6 +10,8 @@ full-featured applications with Python.
 
 [![PyPIVersion](https://img.shields.io/pypi/v/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
 [![GitLabPipeline](https://img.shields.io/gitlab/pipeline/ae-group/ae_console/master?logo=python)](https://gitlab.com/ae-group/ae_console)
+[![Coverage](https://gitlab.com/ae-group/ae_console/-/jobs/artifacts/master/raw/htmlcov/coverage.svg?job=coverage)](https://gitlab.com/ae-group/ae_console/-/jobs/artifacts/master/raw/htmlcov/index.html)
+[![PyLintScore](https://gitlab.com/ae-group/ae_console/-/jobs/artifacts/master/raw/pylint/pylint.svg?job=pylint)](https://gitlab.com/ae-group/ae_console/-/jobs/artifacts/master/raw/pylint/pylint.log?job=pylint)
 [![PyPIImplementation](https://img.shields.io/pypi/implementation/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
 [![PyPIPyVersions](https://img.shields.io/pypi/pyversions/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
 [![PyPIWheel](https://img.shields.io/pypi/wheel/ae_console?logo=python?logo=python)](https://gitlab.com/ae-group/ae_console)
@@ -48,6 +50,6 @@ More info on the features and usage of this portion are available at
 [ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/ae.console.html#module-ae.console
 "ae_console documentation").
 
-<!-- Common files version 0.0.23 deployed (with 0.0.23)
-     to the ae_console module version 0.0.18.
+<!-- Common files version 0.0.24 deployed (with 0.0.24)
+     to the ae_console module version 0.0.19.
 -->
