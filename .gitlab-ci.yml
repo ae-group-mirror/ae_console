@@ -27,6 +27,7 @@ mypy:
 pylint:
   allow_failure: true       # pylint is too picky but still useful for manual code smell checks
   before_script:
+    - python --version
     - pip install -r requirements.txt -r test_requirements.txt    # global before_script not executed if job has one too
     - pip install pylint-exit anybadge
   script:
