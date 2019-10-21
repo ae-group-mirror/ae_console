@@ -217,7 +217,7 @@ from ae.core import (               # type: ignore  # for mypy
 from ae.literal import Literal      # type: ignore
 
 
-__version__ = '0.0.13'
+__version__ = '0.0.14'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -360,7 +360,7 @@ class ConsoleApp(AppBase):
             if lcd:
                 logging_params['py_logging_params'] = lcd                       # .. then cfg py_logging params directly
             else:
-                log_file_name = self.get_var('logFile', default_value=logging_params.get('log_file_name', ''))
+                log_file_name = self.get_var('logFile', default_value=logging_params.get('log_file_name'))
                 logging_params['log_file_name'] = log_file_name                 # .. finally cfg logFile or log file arg
         super().init_logging(**logging_params)
 
@@ -528,7 +528,7 @@ class ConsoleApp(AppBase):
                                             f"Wrong {name} option value {given_value}; allowed are {allowed_values}")
 
         is_main_app = main_app_instance() is self
-        if is_main_app and not self.py_log_params:
+        if is_main_app and not self.py_log_params and 'logFile' in self.cfg_options:
             self._log_file_name = self.cfg_options['logFile'].value
             if self._log_file_name:
                 self.log_file_check()
