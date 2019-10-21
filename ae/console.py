@@ -217,7 +217,7 @@ from ae.core import (               # type: ignore  # for mypy
 from ae.literal import Literal      # type: ignore
 
 
-__version__ = '0.0.14'
+__version__ = '0.0.15'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -648,8 +648,9 @@ class ConsoleApp(AppBase):
 
         :return:    True if the content of the main config file got modified/changed.
         """
-        return os.path.getmtime(self._main_cfg_fnam) > self._main_cfg_mod_time \
-            if self._main_cfg_fnam and self._main_cfg_mod_time else False
+        with config_lock:
+            return os.path.getmtime(self._main_cfg_fnam) > self._main_cfg_mod_time \
+                if self._main_cfg_fnam and self._main_cfg_mod_time else False
 
     def get_variable(self, name: str, section: Optional[str] = None, default_value: Optional[Any] = None,
                      cfg_parser: Optional[ConfigParser] = None, value_type: Optional[Type] = None) -> Any:

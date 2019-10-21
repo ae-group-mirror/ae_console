@@ -811,7 +811,7 @@ class TestConfigOptions:
         file_name, var_name, old_var_val = config_fna_vna_vva(
             file_name=os.path.join(os.getcwd(), os.path.splitext(os.path.basename(sys.argv[0]))[0] + INI_EXT))
         cae = ConsoleApp('test_set_var_with_reload')
-        time.sleep(.300)    # needed because Python is too quick sometimes
+        time.sleep(.639)    # needed because Python is too quick, especially on github-ci
         new_var_val = 'NEW_test_value'
         assert not cae.set_var(var_name, new_var_val)
         assert cae.is_main_cfg_file_modified()
