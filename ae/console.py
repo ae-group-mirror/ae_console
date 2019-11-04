@@ -217,7 +217,7 @@ from ae.core import (               # type: ignore  # for mypy
 from ae.literal import Literal      # type: ignore
 
 
-__version__ = '0.0.21'
+__version__ = '0.0.22'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
