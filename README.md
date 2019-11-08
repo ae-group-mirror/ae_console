@@ -1,8 +1,8 @@
 <!--
-  THIS FILE IS EXCLUSIVELY MAINTAINED IN THE AE ROOT PACKAGE. ANY CHANGES SHOULD BE DONE THERE.
+  THIS FILE IS EXCLUSIVELY MAINTAINED IN THE NAMESPACE ROOT PACKAGE. CHANGES HAVE TO BE DONE THERE.
   All changes will be deployed automatically to all the portions of this namespace package.
 -->
-# console Portion Of ae Namespace Package
+# console portion of ae namespace package
 
 [![GitLabPipeline](https://img.shields.io/gitlab/pipeline/ae-group/ae_console/master?logo=python)](
     https://gitlab.com/ae-group/ae_console)
@@ -34,7 +34,7 @@ full-featured applications with Python.
     https://pypi.org/project/ae-console/#files)
 
 
-## Installation
+## installation
 
 Execute the following command for to use the ae.console module in your
 application. It will install ae.console into your python (virtual) environment:
@@ -58,12 +58,12 @@ For to contribute only to the unit tests or the documentation of this portion re
 the setup extras key `dev` in the above command with `tests` or `docs` respectively.
 
 
-## Namespace Portion Documentation
+## namespace portion documentation
 
 More info on the features and usage of this portion are available at
 [ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/ae.console.html#module-ae.console
 "ae_console documentation").
 
-<!-- Common files version 0.0.33 deployed (with 0.0.33)
-     to the ae_console module version 0.0.22.
+<!-- Common files version 0.0.34 deployed (with 0.0.34)
+     to the ae_console module version 0.0.24.
 -->
