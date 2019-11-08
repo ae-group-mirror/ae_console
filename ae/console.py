@@ -217,11 +217,11 @@ from ae.core import (               # type: ignore  # for mypy
 from ae.literal import Literal      # type: ignore
 
 
-__version__ = '0.0.22'
+__version__ = '0.0.23'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
-MAIN_SECTION_DEF: str = 'aeOptions'     #: default name of main config section
+MAIN_SECTION_NAME: str = 'aeOptions'    #: default name of main config section
 
 # Lock for to prevent errors in config var value changes and reloads/reads
 config_lock = threading.Lock()
@@ -272,7 +272,7 @@ class ConsoleApp(AppBase):
         :param cfg_opt_eval_vars:       dict of additional application specific data values that are used in eval
                                         expressions (e.g. AcuSihotMonitor.ini).
         :param additional_cfg_files:    iterable of additional CFG/INI file names (opt. incl. abs/rel. path).
-        :param cfg_opt_val_stripper:   callable for to strip/reformat/normalize the option choices values.
+        :param cfg_opt_val_stripper:    callable for to strip/reformat/normalize the option choices values.
         :param formatter_class:         alternative formatter class passed onto ArgumentParser instantiation.
         :param epilog:                  optional epilog text for command line arguments/options help text (passed
                                         onto ArgumentParser instantiation).
@@ -627,7 +627,7 @@ class ConsoleApp(AppBase):
         """
         with config_lock:
             cfg_parser = cfg_parser or self._cfg_parser
-            val = cfg_parser.get(section or MAIN_SECTION_DEF, name, fallback=default_value)
+            val = cfg_parser.get(section or MAIN_SECTION_NAME, name, fallback=default_value)
         return val
 
     def load_cfg_files(self):
@@ -669,7 +669,7 @@ class ConsoleApp(AppBase):
 
         This method has an alias named :meth:`get_var`.
         """
-        if name in self.cfg_options and section in (MAIN_SECTION_DEF, '', None):
+        if name in self.cfg_options and section in (MAIN_SECTION_NAME, '', None):
             val = self.cfg_options[name].value
         else:
             lit = Literal(literal_or_value=default_value, value_type=value_type, name=name)  # used for conversion/eval
@@ -700,9 +700,9 @@ class ConsoleApp(AppBase):
         if not cfg_fnam:
             cfg_fnam = self._main_cfg_fnam
         if not section:
-            section = MAIN_SECTION_DEF
+            section = MAIN_SECTION_NAME
 
-        if name in self.cfg_options and section in (MAIN_SECTION_DEF, '', None):
+        if name in self.cfg_options and section in (MAIN_SECTION_NAME, '', None):
             self.cfg_options[name].value = value
 
         if not cfg_fnam or not os.path.isfile(cfg_fnam):

@@ -18,7 +18,7 @@ except ImportError:
 
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_TIMESTAMPED, DATE_ISO, DATE_TIME_ISO, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
-from ae.console import INI_EXT, MAIN_SECTION_DEF, ConsoleApp
+from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def config_fna_vna_vva(request):
         if os.path.sep not in file_name:
             file_name = os.path.join(os.getcwd(), file_name)
         with open(file_name, 'w') as f:
-            f.write(f"[{MAIN_SECTION_DEF}]\n{var_name} = {var_value}")
+            f.write(f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}")
 
         def _tear_down():               # using yield instead of finalizer does not execute the teardown part
             os.remove(file_name)
