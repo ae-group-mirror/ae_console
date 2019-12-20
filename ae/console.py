@@ -217,14 +217,14 @@ from configparser import ConfigParser
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 # noinspection PyProtectedMember
-from ae.core import (               # type: ignore  # for mypy
+from ae.core import (                   # type: ignore  # for mypy
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, DATE_TIME_ISO, DATE_ISO,
     env_var, main_app_instance, ori_std_out, sys_env_text, _logger,
     AppBase)
-from ae.literal import Literal      # type: ignore
+from ae.literal import Literal          # type: ignore
 
 
-__version__ = '0.0.25'
+__version__ = '0.0.26'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -266,27 +266,64 @@ class ConsoleApp(AppBase):
                  **logging_params):
         """ initialize a new :class:`ConsoleApp` instance.
 
-        :param app_title:               application title/description (def=value of main module docstring
-                                        - :ref:`example <app-title>`).
-        :param app_name:                application instance name (def=main module file's base name).
-        :param app_version:             application version (def=value of global __version__ in call stack).
-        :param sys_env_id:              system environment id used as file name suffix for to load all
-                                        the system config variables in sys_env<suffix>.cfg (def='', pass e.g. 'LIVE'
-                                        for to init second ConsoleApp instance with values from sys_envLIVE.cfg).
-        :param debug_level:             default debug level (def=DEBUG_LEVEL_DISABLED).
+        :param app_title:               application title/description for to set the instance attribute
+                                        :attr:`~ae.core.AppBase.app_title`.
+
+                                        If not specified then the docstring of your app's main module will
+                                        be used (see :ref:`example <app-title>`).
+
+        :param app_name:                application instance name for to set the instance attribute
+                                        :attr:`~ae.core.AppBase.app_name`.
+
+                                        If not specified then base name of the main module file name will be used.
+
+        :param app_version:             application version string for to set the instance attribute
+                                        :attr:`~ae.core.AppBase.app_version`.
+
+                                        If not specified then value of a global variable with the name
+                                        `__version__` will be used (if declared in the actual call stack).
+
+        :param sys_env_id:              system environment id for to set the instance attribute
+                                        :attr:`~ae.core.AppBase.sys_env_id`.
+
+                                        This value is also used as file name suffix for to load all
+                                        the system config variables in sys_env<suffix>.cfg. Pass e.g. 'LIVE'
+                                        for to init this ConsoleApp instance with config values from sys_envLIVE.cfg.
+
+                                        The default value of this argument is an empty string.
+
+                                        .. note::
+
+                                        If the argument value results as empty then the value of the optionally defined
+                                        OS environment variable `AE_OPTIONS_SYS_ENV_ID` will be used as default.
+
+        :param debug_level:             default debug level for to set the instance attribute
+                                        :attr:`~ae.core.AppBase.debug_level`.
+
+                                        The default value of this argument is :data:`~ae.core.DEBUG_LEVEL_DISABLED`.
+
         :param multi_threading:         pass True if instance is used in multi-threading app.
+
         :param suppress_stdout:         pass True (for wsgi apps) for to prevent any python print outputs to stdout.
+
         :param cfg_opt_eval_vars:       dict of additional application specific data values that are used in eval
                                         expressions (e.g. AcuSihotMonitor.ini).
+
         :param additional_cfg_files:    iterable of additional CFG/INI file names (opt. incl. abs/rel. path).
+
         :param cfg_opt_val_stripper:    callable for to strip/reformat/normalize the option choices values.
+
         :param formatter_class:         alternative formatter class passed onto ArgumentParser instantiation.
+
         :param epilog:                  optional epilog text for command line arguments/options help text (passed
                                         onto ArgumentParser instantiation).
+
         :param logging_params:          all other kwargs are interpreted as logging configuration values - the
                                         supported kwargs are all the method kwargs of
                                         :meth:`~.core.AppBase.init_logging`.
         """
+        if not sys_env_id:
+            sys_env_id = env_var(MAIN_SECTION_NAME + '_sys_env_id', convert_name=True) or ''
         super().__init__(app_title=app_title, app_name=app_name, app_version=app_version, sys_env_id=sys_env_id,
                          debug_level=debug_level, multi_threading=multi_threading, suppress_stdout=suppress_stdout)
 
