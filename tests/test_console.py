@@ -435,6 +435,29 @@ class TestConfigOptions:
     def test_app_instances_reset1(self):
         assert main_app_instance() is None
 
+    def test_get_var_basics(self, cons_app):
+        cae = cons_app
+        assert cae.get_var('debugLevel') == DEBUG_LEVEL_DISABLED
+        assert cae.get_var('un_declared_name') is None
+
+    def test_get_var_env_options(self, cons_app):
+        cae = cons_app
+        vn = 'testVarName'
+        assert cae.get_var(vn) is None
+
+        vv = 'testVarValue'
+        os.environ['AE_OPTIONS_TEST_VAR_NAME'] = vv
+        assert cae.get_var(vn) == vv
+
+    def test_get_var_env_section(self, cons_app):
+        cae = cons_app
+        vn = 'testVarName'
+        assert cae.get_var(vn, section='aeSystems') is None
+
+        vv = 'testVarValue'
+        os.environ['AE_SYSTEMS_TEST_VAR_NAME'] = vv
+        assert cae.get_var(vn, section='aeSystems') == vv
+
     def test_set_var_basics(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
         file_name, var_name, _ = config_fna_vna_vva(file_name='test' + INI_EXT)
 
