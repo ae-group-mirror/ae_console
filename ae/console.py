@@ -150,11 +150,10 @@ by :mod:`this module <.console>` as well as by :mod:`.core`.
 * `logFile` : log file name for ae logging (this is also a config option - set-able as command line arg).
 
 .. note::
-
-The value of a config variable can be overwritten by defining an OS environment variable with a name
-that is equal to the :func:`snake+upper-case converted names <ae.core.env_var>` of the config-section and -variable.
-E.g. declare an OS environment variable with the name `AE_OPTIONS_DEBUG_LEVEL` for to overwrite the value
-of the :ref:`pre-defined config option/variable <pre-defined-config-options>` `debugLevel`.
+  The value of a config variable can be overwritten by defining an OS environment variable with a name
+  that is equal to the :func:`snake+upper-case converted names <ae.core.env_str>` of the config-section and -variable.
+  E.g. declare an OS environment variable with the name `AE_OPTIONS_DEBUG_LEVEL` for to overwrite the value
+  of the :ref:`pre-defined config option/variable <pre-defined-config-options>` `debugLevel`.
 
 
 .. _config-options:
@@ -219,12 +218,12 @@ from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 # noinspection PyProtectedMember
 from ae.core import (                   # type: ignore  # for mypy
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, DATE_TIME_ISO, DATE_ISO,
-    env_var, main_app_instance, ori_std_out, sys_env_text, _logger,
+    env_str, main_app_instance, ori_std_out, sys_env_text, _logger,
     AppBase)
 from ae.literal import Literal          # type: ignore
 
 
-__version__ = '0.0.26'
+__version__ = '0.0.27'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -293,9 +292,9 @@ class ConsoleApp(AppBase):
                                         The default value of this argument is an empty string.
 
                                         .. note::
-
-                                        If the argument value results as empty then the value of the optionally defined
-                                        OS environment variable `AE_OPTIONS_SYS_ENV_ID` will be used as default.
+                                          If the argument value results as empty string then the value of the
+                                          optionally defined OS environment variable `AE_OPTIONS_SYS_ENV_ID`
+                                          will be used as default.
 
         :param debug_level:             default debug level for to set the instance attribute
                                         :attr:`~ae.core.AppBase.debug_level`.
@@ -323,7 +322,8 @@ class ConsoleApp(AppBase):
                                         :meth:`~.core.AppBase.init_logging`.
         """
         if not sys_env_id:
-            sys_env_id = env_var(MAIN_SECTION_NAME + '_sys_env_id', convert_name=True) or ''
+            sys_env_id = env_str(MAIN_SECTION_NAME + '_sys_env_id', convert_name=True) or ''
+
         super().__init__(app_title=app_title, app_name=app_name, app_version=app_version, sys_env_id=sys_env_id,
                          debug_level=debug_level, multi_threading=multi_threading, suppress_stdout=suppress_stdout)
 
@@ -722,7 +722,7 @@ class ConsoleApp(AppBase):
 
         This method has an alias named :meth:`get_var`.
         """
-        val = env_var((section or MAIN_SECTION_NAME) + '_' + name, convert_name=True)
+        val = env_str((section or MAIN_SECTION_NAME) + '_' + name, convert_name=True)
         if val is None:
             if name in self.cfg_options and section in (MAIN_SECTION_NAME, '', None):
                 val = self.cfg_options[name].value
