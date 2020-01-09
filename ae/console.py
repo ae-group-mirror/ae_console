@@ -10,8 +10,8 @@ configurable logging and debugging features.
 The attributes and methods of the :class:`~ae.core.AppBase` are documented in the
 :mod:`docstrings of the core module <ae.core>`.
 
-Basic Usage
------------
+basic usage of console application class
+----------------------------------------
 
 .. _app-title:
 .. _app-version:
@@ -57,12 +57,12 @@ Additional configuration values of your application can be provided by :ref:`INI
 and gathered with the :class:`ConsoleApp` method :meth:`~ConsoleApp.get_variable`.
 
 
-Configuration Files, Sections, Variables And Options
+configuration files, sections, variables and options
 ----------------------------------------------------
 
 .. _config-files:
 
-Config Files
+config files
 ............
 
 You can create and use separate config files for each of your applications, used system environments and data domains.
@@ -96,9 +96,14 @@ non-domain-specific config files get only loaded if they are either in the appli
 installation folder, in the current working directory or up to two levels above
 the current working.
 
+Each config file get first searched in the current working directory, then in the user
+data directory (see :func:`get_user_data_path`) and finally in the application
+installation directory.
+
+
 .. _config-sections:
 
-Config sections
+config sections
 ...............
 
 This module is supporting the `config file format <https://en.wikipedia.org/wiki/INI_file>`_ of
@@ -123,7 +128,7 @@ for to store the values of any pre-defined :ref:`config option <config-options>`
 
 .. _config-variables:
 
-Config Variables
+config variables
 ................
 
 Config variables can be defined in any config section and can hold any data type. In the example
@@ -158,7 +163,7 @@ by :mod:`this module <.console>` as well as by :mod:`.core`.
 
 .. _config-options:
 
-Config Options
+config options
 ..............
 
 Config options are config variables that are defined exclusively in the hard-coded section
@@ -186,7 +191,7 @@ Use the :meth:`~ConsoleApp.set_option` if you want to change the value of a conf
 
 .. _config-value-types:
 
-Config Value Types
+config value types
 ..................
 
 A configuration options can be of any type. With the :paramref:`~ConsoleApp.add_option.value` argument and
@@ -194,7 +199,7 @@ A configuration options can be of any type. With the :paramref:`~ConsoleApp.add_
 for your config options and variables (like dict/list/tuple/datetime/... or any other object type).
 
 
-Pre-defined Configuration Options
+pre-defined configuration options
 .................................
 
 .. _pre-defined-config-options:
@@ -205,25 +210,32 @@ with timestamp). The supported config option values are documented :data:`here <
 
 The value of the second pre-defined config option `logFile` specifies the log file path/file_name, which can
 be abbreviated on the command line with the short option -L.
+
+
+console helper functions
+========================
+
+This module is also providing the function :func:`get_user_data_path` for to determine for
+each operating system the directory where an application can store user-specific data and settings.
+
 """
 import os
 import datetime
-
 import threading
-from typing import Any, Callable, Dict, Iterable, Optional, Type, Sequence
 
+from typing import Any, Callable, Dict, Iterable, Optional, Type, Sequence
 from configparser import ConfigParser
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 # noinspection PyProtectedMember
 from ae.core import (                   # type: ignore  # for mypy
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, DATE_TIME_ISO, DATE_ISO,
-    env_str, main_app_instance, ori_std_out, sys_env_text, _logger,
+    env_str, main_app_instance, ori_std_out, sys_env_text, sys_platform, _logger,
     AppBase)
 from ae.literal import Literal          # type: ignore
 
 
-__version__ = '0.0.27'
+__version__ = '0.0.28'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -231,6 +243,37 @@ MAIN_SECTION_NAME: str = 'aeOptions'    #: default name of main config section
 
 # Lock for to prevent errors in config var value changes and reloads/reads
 config_lock = threading.Lock()
+
+
+def get_user_data_path() -> str:
+    """ determine the os-specific absolute path of the directory where user data can be stored.
+
+    :return:    path string of the user data folder.
+    """
+    platform = sys_platform()
+    if platform == 'android':               # pragma: no cover
+        from jnius import autoclass, cast   # type: ignore  # pylint: disable=no-name-in-module, import-outside-toplevel
+        # noinspection PyPep8Naming
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')   # pylint: disable=invalid-name
+        context = cast('android.content.Context', PythonActivity.mActivity)
+        file_p = cast('java.io.File', context.getFilesDir())
+        data_path = file_p.getAbsolutePath()
+
+    elif platform in ('win32', 'cygwin'):
+        data_path = env_str('APPDATA')
+
+    else:
+        if platform == 'ios':
+            data_path = 'Documents'
+        elif platform == 'darwin':
+            data_path = os.path.join('Library', 'Application Support')
+        else:                                       # platform == 'linux' or 'freebsd' or anything else
+            data_path = env_str('XDG_CONFIG_HOME') or '.config'
+
+        if not os.path.isabs(data_path):
+            data_path = os.path.expanduser(os.path.join('~', data_path))
+
+    return data_path
 
 
 class ConsoleApp(AppBase):
@@ -634,19 +677,26 @@ class ConsoleApp(AppBase):
         :return:                        ""/empty string on success else error message text.
         """
         cwd_path = os.getcwd()
+        usr_path = get_user_data_path()
         app_path = self._app_path
         app_name = self.app_name
 
         # prepare config env, first compile cfg/ini files - the last one overwrites previously loaded values
         cwd_path_fnam = os.path.join(cwd_path, app_name)
-        self._main_cfg_fnam = cwd_path_fnam + INI_EXT  # default will be overwritten by load_cfg_files()
+        usr_app_path = os.path.join(usr_path, app_name)
+        self._main_cfg_fnam = cwd_path_fnam + INI_EXT  # default, will be overwritten by load_cfg_files()
         sys_env_id = self.sys_env_id or 'TEST'
-        for cfg_path in (os.path.join(cwd_path, '..', '..'), app_path, os.path.join(cwd_path, '..'), cwd_path, ):
+        for cfg_path in (os.path.join(cwd_path, '..', '..'), app_path, usr_path, usr_app_path,
+                         os.path.join(cwd_path, '..'), cwd_path, ):
             for cfg_file in ('.app_env.cfg', '.sys_env' + sys_env_id + '.cfg', '.sys_env.cfg', ):
                 self.add_cfg_file(os.path.join(cfg_path, cfg_file))
 
         app_path_fnam = os.path.join(app_path, app_name)
+        usr_path_fnam = os.path.join(usr_path, app_name)
+        usr_app_path_fnam = os.path.join(usr_path, app_name)
         for cfg_file in (app_path_fnam + '.cfg', app_path_fnam + INI_EXT,
+                         usr_path_fnam + '.cfg', usr_path_fnam + INI_EXT,
+                         usr_app_path_fnam + '.cfg', usr_app_path_fnam + INI_EXT,
                          cwd_path_fnam + '.cfg', cwd_path_fnam + INI_EXT):
             self.add_cfg_file(cfg_file)
 

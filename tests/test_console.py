@@ -17,8 +17,8 @@ except ImportError:
 
 
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_TIMESTAMPED, DATE_ISO, DATE_TIME_ISO, MAX_NUM_LOG_FILES,
-                     activate_multi_threading, main_app_instance, po, SubApp)
-from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp
+                     activate_multi_threading, main_app_instance, po, sys_platform, SubApp)
+from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp, get_user_data_path
 
 
 @pytest.fixture
@@ -37,6 +37,94 @@ def config_fna_vna_vva(request):
         return file_name, var_name, var_value
 
     return _setup_and_teardown
+
+
+class TestHelpers:
+    def test_get_user_data_path_android(self):
+        if sys_platform() != 'android':
+            pytest.skip("android-only test")
+        try:
+            os.environ['ANDROID_ARGUMENT'] = 'tst'
+            assert get_user_data_path() == 'android'
+        finally:
+            os.environ.pop('ANDROID_ARGUMENT', None)
+
+        try:
+            os.environ['KIVY_BUILD'] = 'android'
+            assert get_user_data_path() == 'android'
+        finally:
+            os.environ.pop('KIVY_BUILD', None)
+
+    def test_get_user_data_path_cygwin(self):
+        test_root = '/test_path'
+        old_platform = sys.platform
+        old_env = os.environ.get('APPDATA')
+        try:
+            sys.platform = 'cygwin'
+            os.environ['APPDATA'] = test_root
+            assert get_user_data_path() == test_root
+        finally:
+            if old_env:
+                os.environ['APPDATA'] = old_env
+            else:
+                os.environ.pop('APPDATA', None)
+            sys.platform = old_platform
+
+    def test_get_user_data_path_darwin(self):
+        old_platform = sys.platform
+        try:
+            sys.platform = 'darwin'
+            assert get_user_data_path() == os.path.expanduser(os.path.join('~', 'Library', 'Application Support'))
+        finally:
+            sys.platform = old_platform
+
+    def test_get_user_data_path_ios(self):
+        old_platform = sys.platform
+        try:
+            sys.platform = 'ios'
+            assert get_user_data_path() == os.path.expanduser(os.path.join('~', 'Documents'))
+        finally:
+            sys.platform = old_platform
+
+    def test_get_user_data_path_linux(self):    # or _freebsd or any other os
+        test_path = '.config'
+        old_platform = sys.platform
+        old_env = os.environ.get('XDG_CONFIG_HOME')
+        try:
+            sys.platform = 'linux'
+            os.environ['XDG_CONFIG_HOME'] = test_path
+            assert get_user_data_path().endswith(test_path)
+
+            os.environ['XDG_CONFIG_HOME'] = ""
+            assert get_user_data_path().endswith(test_path)
+
+            sys.platform = 'freebsd'
+            os.environ['XDG_CONFIG_HOME'] = test_path
+            assert get_user_data_path().endswith(test_path)
+
+            os.environ['XDG_CONFIG_HOME'] = ""
+            assert get_user_data_path().endswith(test_path)
+        finally:
+            if old_env:
+                os.environ['XDG_CONFIG_HOME'] = old_env
+            else:
+                os.environ.pop('XDG_CONFIG_HOME', None)
+            sys.platform = old_platform
+
+    def test_get_user_data_path_win32(self):
+        test_root = '/test_path'
+        old_platform = sys.platform
+        old_env = os.environ.get('APPDATA')
+        try:
+            sys.platform = 'win32'
+            os.environ['APPDATA'] = test_root
+            assert get_user_data_path() == test_root
+        finally:
+            if old_env:
+                os.environ['APPDATA'] = old_env
+            else:
+                os.environ.pop('APPDATA', None)
+            sys.platform = old_platform
 
 
 class TestAeLogging:
