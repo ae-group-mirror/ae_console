@@ -223,7 +223,7 @@ import os
 import datetime
 import threading
 
-from typing import Any, Callable, Dict, Iterable, Optional, Type, Sequence
+from typing import Any, Callable, Dict, Iterable, Optional, Type
 from configparser import ConfigParser
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
@@ -373,7 +373,7 @@ class ConsoleApp(AppBase):
         with config_lock:
             self._cfg_parser: ConfigParser = ConfigParser()                 #: ConfigParser instance
             self.cfg_options: Dict[str, Literal] = dict()                   #: all config options
-            self.cfg_opt_choices: Dict[str, Sequence] = dict()              #: all valid config option choices
+            self.cfg_opt_choices: Dict[str, Iterable] = dict()              #: all valid config option choices
             self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or dict()      #: app-specific vars for init of cfg options
 
             # prepare config files, including determine default config file (last existing INI/CFG file) for
@@ -485,7 +485,8 @@ class ConsoleApp(AppBase):
 
     get_arg = get_argument      #: alias of method :meth:`.get_argument`
 
-    def add_option(self, name, desc, value, short_opt=None, choices=None, multiple=False):
+    def add_option(self, name: str, desc: str, value: Any,
+                   short_opt: str = None, choices: Optional[Iterable] = None, multiple: bool = False):
         """ defining and adding a new config option for this app.
 
         :param name:        string specifying the option id and short description of this new option.
@@ -531,6 +532,12 @@ class ConsoleApp(AppBase):
         self.cfg_options[name] = option
 
     add_opt = add_option    #: alias of method :meth:`.add_option`
+
+    def _change_option(self, name: str, value: Any):
+        """ change config option and any references to it. """
+        self.cfg_options[name].value = value
+        if name == 'debugLevel':
+            self.debug_level = value
 
     def get_option(self, name: str, default_value: Optional[Any] = None) -> Any:
         """ get the value of a config option specified by it's name (option id).
@@ -652,9 +659,7 @@ class ConsoleApp(AppBase):
 
         This method has an alias named :meth:`set_opt`.
         """
-        self.cfg_options[name].value = value
-        if name == 'debugLevel':
-            self.debug_level = value
+        self._change_option(name, value)
         return self.set_var(name, value, cfg_fnam) if save_to_config else ''
 
     set_opt = set_option    #: alias of method :meth:`.set_option`
@@ -809,7 +814,7 @@ class ConsoleApp(AppBase):
             section = MAIN_SECTION_NAME
 
         if name in self.cfg_options and section in (MAIN_SECTION_NAME, '', None):
-            self.cfg_options[name].value = value
+            self._change_option(name, value)
 
         if not cfg_fnam or not os.path.isfile(cfg_fnam):
             return msg + f"INI/CFG file {cfg_fnam} not found." \
