@@ -235,7 +235,7 @@ from ae.core import (                   # type: ignore  # for mypy
 from ae.literal import Literal          # type: ignore
 
 
-__version__ = '0.0.29'
+__version__ = '0.0.30'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -628,7 +628,7 @@ class ConsoleApp(AppBase):
                 self.log_file_check()
 
         # finished argument parsing - now print chosen option values to the console
-        debug_level = self.cfg_options['debugLevel'].value
+        self.debug_level = debug_level = self.cfg_options['debugLevel'].value
         if debug_level >= DEBUG_LEVEL_ENABLED:
             self.po("  ##  Debug Level(" + ", ".join([str(k) + "=" + v for k, v in DEBUG_LEVELS.items()]) + "):",
                     debug_level, logger=_logger)
