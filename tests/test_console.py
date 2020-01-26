@@ -863,8 +863,48 @@ class TestConfigOptions:
         cae = ConsoleApp('test_config_tuple_eval', additional_cfg_files=[file_name])
         assert cae.get_var(var_name) == ('a', 'b', 'c')
 
-    def test_debug_level_add_opt_default(self, restore_app_env):
+    def test_base_debug_level_add_opt_default(self, restore_app_env):
         cae = ConsoleApp('test_add_opt_default', debug_level=DEBUG_LEVEL_TIMESTAMPED)
+        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+
+    def test_base_debug_level_short_option_value(self, restore_app_env, sys_argv_app_key_restore):
+        cae = ConsoleApp('test_option_value')
+        sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_TIMESTAMPED)]
+        cae._parse_args()
+        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+
+    def test_base_debug_level_long_option_value(self, restore_app_env, sys_argv_app_key_restore):
+        cae = ConsoleApp('test_long_option_value')
+        sys.argv = ['test', '--debugLevel=' + str(DEBUG_LEVEL_TIMESTAMPED)]
+        cae._parse_args()
+        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+
+    def test_base_debug_level_short_option_eval_single_quoted(self, restore_app_env, sys_argv_app_key_restore):
+        cae = ConsoleApp('test_quoted_option_eval')
+        sys.argv = ["test", "-D='''int('" + str(DEBUG_LEVEL_TIMESTAMPED) + "')'''"]
+        cae._parse_args()
+        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+
+    def test_base_debug_level_short_option_eval_double_quoted(self, restore_app_env, sys_argv_app_key_restore):
+        cae = ConsoleApp('test_double_quoted_option_eval')
+        sys.argv = ['test', '-D="""int("' + str(DEBUG_LEVEL_TIMESTAMPED) + '")"""']
+        cae._parse_args()
+        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+
+    def test_base_debug_level_config_default(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
+        file_name, var_name, _ = config_fna_vna_vva(var_name='debugLevel', var_value=str(DEBUG_LEVEL_TIMESTAMPED))
+        cae = ConsoleApp('test_config_default', additional_cfg_files=[file_name])
+        sys.argv = [sys_argv_app_key_restore, ]
+        cae._parse_args()
+        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+
+    def test_base_debug_level_config_eval_single_quote(self, restore_app_env, config_fna_vna_vva,
+                                                       sys_argv_app_key_restore):
+        file_name, var_name, _ = config_fna_vna_vva(var_name='debugLevel',
+                                                    var_value="'''int('" + str(DEBUG_LEVEL_TIMESTAMPED) + "')'''")
+        cae = ConsoleApp('test_config_eval', additional_cfg_files=[file_name])
+        sys.argv = [sys_argv_app_key_restore, ]
+        cae._parse_args()
         assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
 
     def test_debug_level_short_option_value(self, restore_app_env, sys_argv_app_key_restore):
