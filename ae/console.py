@@ -224,7 +224,7 @@ import datetime
 import threading
 
 from typing import Any, Callable, Dict, Iterable, Optional, Type
-from configparser import ConfigParser
+from configparser import ConfigParser, ExtendedInterpolation
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 # noinspection PyProtectedMember
@@ -235,7 +235,7 @@ from ae.core import (                   # type: ignore  # for mypy
 from ae.literal import Literal          # type: ignore
 
 
-__version__ = '0.0.30'
+__version__ = '0.0.31'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -274,6 +274,18 @@ def get_user_data_path() -> str:
             data_path = os.path.expanduser(os.path.join('~', data_path))
 
     return data_path
+
+
+def instantiate_config_parser() -> ConfigParser:
+    """ instantiate and prepare config file parser. """
+    cfg_parser = ConfigParser(interpolation=ExtendedInterpolation())
+    # set optionxform to have case sensitive var names (or use 'lambda option: option')
+    # mypy V 0.740 bug - see mypy issue #5062: adding pragma "type: ignore" breaks PyCharm (showing
+    # .. inspection warning "Non-self attribute could not be type-hinted"), but
+    # .. also cast(Callable[[Arg(str, 'option')], str], str) and # type: ... is not working
+    # .. (because Arg is not defined)
+    setattr(cfg_parser, 'optionxform', str)
+    return cfg_parser
 
 
 class ConsoleApp(AppBase):
@@ -371,7 +383,7 @@ class ConsoleApp(AppBase):
                          debug_level=debug_level, multi_threading=multi_threading, suppress_stdout=suppress_stdout)
 
         with config_lock:
-            self._cfg_parser: ConfigParser = ConfigParser()                 #: ConfigParser instance
+            self._cfg_parser = instantiate_config_parser()                  #: ConfigParser instance
             self.cfg_options: Dict[str, Literal] = dict()                   #: all config options
             self.cfg_opt_choices: Dict[str, Iterable] = dict()              #: all valid config option choices
             self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or dict()      #: app-specific vars for init of cfg options
@@ -739,7 +751,6 @@ class ConsoleApp(AppBase):
                     self._main_cfg_mod_time = os.path.getmtime(self._main_cfg_fnam)
                     break
 
-            self._cfg_parser.optionxform = str      # or use 'lambda option: option' to have case sensitive var names
             self._cfg_parser.read(self._cfg_files, encoding='utf-8')
 
     def is_main_cfg_file_modified(self) -> bool:
@@ -823,23 +834,15 @@ class ConsoleApp(AppBase):
         err_msg = ''
         with config_lock:
             try:
-                cfg_parser = ConfigParser()     # not using self._cfg_parser for to put INI vars from other files
-                # set optionxform to have case sensitive var names (or use 'lambda option: option')
-                # mypy V 0.740 bug - see mypy issue #5062: adding pragma "type: ignore" breaks PyCharm (showing
-                # .. inspection warning "Non-self attribute could not be type-hinted"), but
-                # .. also cast(Callable[[Arg(str, 'option')], str], str) and # type: ... is not working
-                # .. (because Arg is not defined)
-                setattr(cfg_parser, 'optionxform', str)
+                cfg_parser = instantiate_config_parser()
                 cfg_parser.read(cfg_fnam)
-                if isinstance(value, (dict, list, tuple)):
-                    str_val = "'''" + repr(value).replace('%', '%%') + "'''"
-                elif isinstance(value, datetime.datetime):
+                if isinstance(value, datetime.datetime):
                     str_val = value.strftime(DATE_TIME_ISO)
                 elif isinstance(value, datetime.date):
                     str_val = value.strftime(DATE_ISO)
                 else:
-                    str_val = str(value)    # using str() here because repr() will put high-commas around string values
-                cfg_parser.set(section, name, str_val)
+                    str_val = repr(value)
+                cfg_parser.set(section, name, str_val.replace('%', '%%'))
                 with open(cfg_fnam, 'w') as configfile:
                     cfg_parser.write(configfile)
             except Exception as ex:
