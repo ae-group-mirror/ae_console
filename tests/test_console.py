@@ -7,7 +7,7 @@ import threading
 import time
 
 from argparse import ArgumentError
-from typing import cast
+from typing import cast, Any
 
 import pytest
 try:
@@ -16,7 +16,7 @@ except ImportError:
     from .conftest import delete_files
 
 
-from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_TIMESTAMPED, DATE_ISO, DATE_TIME_ISO, MAX_NUM_LOG_FILES,
+from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, DATE_ISO, DATE_TIME_ISO, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, sys_platform, SubApp)
 from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp, get_user_data_path
 
@@ -24,7 +24,7 @@ from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp, get_user_data_pat
 @pytest.fixture
 def config_fna_vna_vva(request):
     """ prepare config test files """
-    def _setup_and_teardown(file_name='test_config.cfg', var_name='test_config_var', var_value='test_value'):
+    def _setup_and_teardown(file_name='test_config.cfg', var_name='test_config_var', var_value: Any = 'test_value'):
         if os.path.sep not in file_name:
             file_name = os.path.join(os.getcwd(), file_name)
         with open(file_name, 'w') as f:
@@ -155,7 +155,7 @@ class TestAeLogging:
                          multi_threading=True, log_file_name=log_file, log_file_size_max=.001)
         try:
             sys.argv = [sys_argv_app_key_restore, ]
-            file_name_chk = cae.get_opt('logFile')   # get_opt() has to be called at least once for to create log file
+            file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once for to create log file
             assert file_name_chk == log_file
             for idx in range(MAX_NUM_LOG_FILES + 9):
                 for line_no in range(16):     # full loop is creating 1 kb of log entries (16 * 64 bytes)
@@ -197,7 +197,7 @@ class TestAeLogging:
         cae = ConsoleApp('test_log_file_flush', log_file_name=log_file)
         try:
             sys.argv = [sys_argv_app_key_restore, ]
-            file_name_chk = cae.get_opt('logFile')   # get_opt() has to be called at least once for to create log file
+            file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once for to create log file
             assert file_name_chk == log_file
             assert os.path.exists(log_file)
         finally:
@@ -260,6 +260,7 @@ class TestAeLogging:
                 pass  # wait until sub-thread has called init_logging()
             po(mp + tst_out + "_1")
             app.po(mp + tst_out + "_2")
+            assert isinstance(sub, SubApp)
             sub.init_logging()  # close sub-app log file
             sub_thread.join()
             app.init_logging()  # close main-app log file
@@ -389,7 +390,7 @@ class TestPythonLogging:
         assert caplog.text.endswith(log_text + "\n")
 
         # ConsoleAppEnv dpo
-        sys.argv = ['tl_cdc']   # sys.argv has to be set for to allow get_option('debugLevel') calls done by debug_out()
+        sys.argv = ['tl_cdc']  # sys.argv has to be set for to allow get_option('debug_level') calls done by debug_out()
         new_log_text = entry_prefix + "5 dpo"
         cae.dpo(new_log_text, minimum_debug_level=DEBUG_LEVEL_DISABLED)
         assert caplog.text.endswith(log_text + "\n")
@@ -440,7 +441,11 @@ class TestConsoleAppBasics:
 
     def test_add_opt(self, restore_app_env):
         cae = ConsoleApp('test_add_opt')
-        cae.add_opt('test_opt', 'test_opt_description', 'test_opt_value', short_opt='')
+        opt_name = 'test_opt'
+        opt_val = 'test_opt_value'
+        assert cae.get_option(opt_name) is None
+        cae.add_opt(opt_name, 'test_opt_description', opt_val, short_opt='')
+        assert cae.get_option(opt_name) == opt_val
 
     def test_set_opt(self, restore_app_env, sys_argv_app_key_restore):
         tst_val = 'test_init_value'
@@ -452,8 +457,8 @@ class TestConsoleAppBasics:
         cae.set_opt('test_opt', tst_val, save_to_config=False)
         assert cae.get_opt('test_opt') == tst_val
 
-        cae.set_opt('debugLevel', DEBUG_LEVEL_TIMESTAMPED, save_to_config=False)
-        assert cae.get_opt('debugLevel') == DEBUG_LEVEL_TIMESTAMPED
+        cae.set_opt('debug_level', DEBUG_LEVEL_VERBOSE, save_to_config=False)
+        assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
     def test_add_argument(self, restore_app_env):
         cae = ConsoleApp('test_add_argument')
@@ -466,13 +471,19 @@ class TestConsoleAppBasics:
         sys.argv = ['test_app', arg_val]
         assert cae.get_argument('test_arg') == arg_val
 
+    def test_debug_level_set_property(self, restore_app_env):
+        cae = ConsoleApp()
+        assert cae.debug_level == DEBUG_LEVEL_DISABLED
+        cae.debug_level = DEBUG_LEVEL_VERBOSE
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
+
     def test_show_help(self, restore_app_env):
         cae = ConsoleApp('test_show_help')
         cae.show_help()
 
     def test_sys_env_id(self, capsys, restore_app_env, sys_argv_app_key_restore):
         sei = 'tSt'
-        cae = ConsoleApp('test_sys_env_id', sys_env_id=sei, debug_level=DEBUG_LEVEL_TIMESTAMPED)
+        cae = ConsoleApp('test_sys_env_id', sys_env_id=sei, debug_level=DEBUG_LEVEL_VERBOSE)
         assert cae.sys_env_id == sei
         cae.po(sei)     # increase coverage
         out, err = capsys.readouterr()
@@ -481,7 +492,7 @@ class TestConsoleAppBasics:
         # special case for error code path coverage
         ca2 = ConsoleApp('test_sys_env_id_COPY')
         assert ca2.sys_env_id == ''
-        assert not ca2.get_opt('debugLevel')
+        assert not ca2.get_opt('debug_level')
 
     def test_shutdown_basics(self, restore_app_env):
         def thr():
@@ -525,7 +536,7 @@ class TestConfigOptions:
 
     def test_get_var_basics(self, cons_app):
         cae = cons_app
-        assert cae.get_var('debugLevel') == DEBUG_LEVEL_DISABLED
+        assert cae.get_var('debug_level') == DEBUG_LEVEL_DISABLED
         assert cae.get_var('un_declared_name') is None
 
     def test_get_var_env_options(self, cons_app):
@@ -864,93 +875,93 @@ class TestConfigOptions:
         assert cae.get_var(var_name) == ('a', 'b', 'c')
 
     def test_base_debug_level_add_opt_default(self, restore_app_env):
-        cae = ConsoleApp('test_add_opt_default', debug_level=DEBUG_LEVEL_TIMESTAMPED)
-        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+        cae = ConsoleApp('test_add_opt_default', debug_level=DEBUG_LEVEL_VERBOSE)
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
     def test_base_debug_level_short_option_value(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_option_value')
-        sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_TIMESTAMPED)]
-        cae._parse_args()
-        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_VERBOSE)]
+        cae.run_app()
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
     def test_base_debug_level_long_option_value(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_long_option_value')
-        sys.argv = ['test', '--debugLevel=' + str(DEBUG_LEVEL_TIMESTAMPED)]
-        cae._parse_args()
-        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ['test', '--debug_level=' + str(DEBUG_LEVEL_VERBOSE)]
+        cae.run_app()
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
     def test_base_debug_level_short_option_eval_single_quoted(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_quoted_option_eval')
-        sys.argv = ["test", "-D='''int('" + str(DEBUG_LEVEL_TIMESTAMPED) + "')'''"]
-        cae._parse_args()
-        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ["test", "-D='''int('" + str(DEBUG_LEVEL_VERBOSE) + "')'''"]
+        cae.run_app()
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
     def test_base_debug_level_short_option_eval_double_quoted(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_double_quoted_option_eval')
-        sys.argv = ['test', '-D="""int("' + str(DEBUG_LEVEL_TIMESTAMPED) + '")"""']
-        cae._parse_args()
-        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ['test', '-D="""int("' + str(DEBUG_LEVEL_VERBOSE) + '")"""']
+        cae.run_app()
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
     def test_base_debug_level_config_default(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
-        file_name, var_name, _ = config_fna_vna_vva(var_name='debugLevel', var_value=str(DEBUG_LEVEL_TIMESTAMPED))
+        file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level', var_value=str(DEBUG_LEVEL_VERBOSE))
         cae = ConsoleApp('test_config_default', additional_cfg_files=[file_name])
         sys.argv = [sys_argv_app_key_restore, ]
-        cae._parse_args()
-        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+        cae.run_app()
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
     def test_base_debug_level_config_eval_single_quote(self, restore_app_env, config_fna_vna_vva,
                                                        sys_argv_app_key_restore):
-        file_name, var_name, _ = config_fna_vna_vva(var_name='debugLevel',
-                                                    var_value="'''int('" + str(DEBUG_LEVEL_TIMESTAMPED) + "')'''")
+        file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level',
+                                                    var_value="'''int('" + str(DEBUG_LEVEL_VERBOSE) + "')'''")
         cae = ConsoleApp('test_config_eval', additional_cfg_files=[file_name])
         sys.argv = [sys_argv_app_key_restore, ]
-        cae._parse_args()
-        assert cae.debug_level == DEBUG_LEVEL_TIMESTAMPED
+        cae.run_app()
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
     def test_debug_level_short_option_value(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_option_value')
-        sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_TIMESTAMPED)]
-        assert cae.get_opt('debugLevel') == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_VERBOSE)]
+        assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
     def test_debug_level_long_option_value(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_long_option_value')
-        sys.argv = ['test', '--debugLevel=' + str(DEBUG_LEVEL_TIMESTAMPED)]
-        assert cae.get_opt('debugLevel') == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ['test', '--debug_level=' + str(DEBUG_LEVEL_VERBOSE)]
+        assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
     def test_debug_level_short_option_eval_single_quoted(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_quoted_option_eval')
-        sys.argv = ["test", "-D='''int('" + str(DEBUG_LEVEL_TIMESTAMPED) + "')'''"]
-        assert cae.get_opt('debugLevel') == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ["test", "-D='''int('" + str(DEBUG_LEVEL_VERBOSE) + "')'''"]
+        assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
     def test_debug_level_short_option_eval_double_quoted(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_double_quoted_option_eval')
-        sys.argv = ['test', '-D="""int("' + str(DEBUG_LEVEL_TIMESTAMPED) + '")"""']
-        assert cae.get_opt('debugLevel') == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ['test', '-D="""int("' + str(DEBUG_LEVEL_VERBOSE) + '")"""']
+        assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
     def test_debug_level_config_default(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
-        file_name, var_name, _ = config_fna_vna_vva(var_name='debugLevel', var_value=str(DEBUG_LEVEL_TIMESTAMPED))
+        file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level', var_value=str(DEBUG_LEVEL_VERBOSE))
         cae = ConsoleApp('test_config_default', additional_cfg_files=[file_name])
         sys.argv = [sys_argv_app_key_restore, ]
-        assert cae.get_opt(var_name) == DEBUG_LEVEL_TIMESTAMPED
+        assert cae.get_opt(var_name) == DEBUG_LEVEL_VERBOSE
 
     def test_debug_level_config_eval_single_quote(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
-        file_name, var_name, _ = config_fna_vna_vva(var_name='debugLevel',
-                                                    var_value="'''int('" + str(DEBUG_LEVEL_TIMESTAMPED) + "')'''")
+        file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level',
+                                                    var_value="'''int('" + str(DEBUG_LEVEL_VERBOSE) + "')'''")
         cae = ConsoleApp('test_config_eval', additional_cfg_files=[file_name])
         sys.argv = [sys_argv_app_key_restore, ]
-        assert cae.get_opt(var_name) == DEBUG_LEVEL_TIMESTAMPED
+        assert cae.get_opt(var_name) == DEBUG_LEVEL_VERBOSE
 
     def test_debug_level_config_eval_double_quote(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
-        file_name, var_name, _ = config_fna_vna_vva(var_name='debugLevel',
-                                                    var_value='"""int("' + str(DEBUG_LEVEL_TIMESTAMPED) + '")"""')
+        file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level',
+                                                    var_value='"""int("' + str(DEBUG_LEVEL_VERBOSE) + '")"""')
         cae = ConsoleApp('test_config_double_eval', additional_cfg_files=[file_name])
         sys.argv = [sys_argv_app_key_restore, ]
-        assert cae.get_opt(var_name) == DEBUG_LEVEL_TIMESTAMPED
+        assert cae.get_opt(var_name) == DEBUG_LEVEL_VERBOSE
 
     def test_sys_env_id_with_debug(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_sys_env_id_with_debug', sys_env_id='OTHER')
-        sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_TIMESTAMPED)]
-        assert cae.get_opt('debugLevel') == DEBUG_LEVEL_TIMESTAMPED
+        sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_VERBOSE)]
+        assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
     def test_config_main_file_not_modified(self, config_fna_vna_vva, restore_app_env):
         config_fna_vna_vva(
@@ -978,6 +989,19 @@ class TestConfigOptions:
         assert cfg_val == new_var_val
 
         assert not cae.is_main_cfg_file_modified()
+
+    def test_cfg_section_variable_names(self, restore_app_env, config_fna_vna_vva):
+        file_name, var_name, _old_var_val = config_fna_vna_vva()
+        cae = ConsoleApp(additional_cfg_files=[file_name])
+        var_names = cae.cfg_section_variable_names(MAIN_SECTION_NAME)
+        assert var_name in var_names
+
+    def test_cfg_section_variable_names_missing_section(self, restore_app_env, config_fna_vna_vva):
+        _file_name, _var_name, _old_var_val = config_fna_vna_vva()
+        cae = ConsoleApp()
+        var_names = cae.cfg_section_variable_names("missing_section_name")
+        assert not var_names
+        assert isinstance(var_names, tuple)
 
     def test_app_instances_reset2(self):
         assert main_app_instance() is None

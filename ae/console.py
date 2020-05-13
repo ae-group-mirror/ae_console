@@ -2,13 +2,15 @@
 console application environment
 ===============================
 
-The :class:`ConsoleApp` allows your application the easy declaration of command line
-arguments and options. It will additionally extend your application with dynamically
-configurable logging and debugging features.
+The :class:`ConsoleApp` allows your application the easy declaration of
+command line arguments and options.
 
-:class:`ConsoleApp` inherits from the :class:`~ae.core.AppBase` application base class.
-The attributes and methods of the :class:`~ae.core.AppBase` are documented in the
-:mod:`docstrings of the core module <ae.core>`.
+:class:`ConsoleApp` inherits from the :class:`~ae.core.AppBase`
+application base class. :class:`~ae.core.AppBase` will extend your
+application with dynamically configurable logging and debugging
+features. The attributes and methods of :class:`~ae.core.AppBase`
+are documented in the :mod:`docstrings of the core module <ae.core>`.
+
 
 basic usage of console application class
 ----------------------------------------
@@ -42,6 +44,9 @@ vars/options (like e.g. the application startup folder path and the current work
 automatically initialized for your application.
 
 
+define command line arguments and options
+_________________________________________
+
 With the methods :meth:`~ConsoleApp.add_argument` and :meth:`~ConsoleApp.add_option` of your just created
 :class:`ConsoleApp` instance you can then define the command line arguments and
 the :ref:`config options <config-options>` of your application::
@@ -49,8 +54,13 @@ the :ref:`config options <config-options>` of your application::
     ca.add_argument('argument_name_or_id', help="Help text for this command line argument")
     ca.add_option('option_name_or_id', "help text for this command line option", "default_value")
     ...
+    ca.run_app()
 
-After all arguments and config options are defined your application can gather their values with the methods
+After all arguments and config options of your application are defined, you have to call
+the :meth:`~ConsoleApp.run_app` method of the :class:`ConsoleApp` instance for to parse
+the command line arguments.
+
+After the commend line argument parsing your application can gather their values with the methods
 :meth:`~ConsoleApp.get_argument` and :meth:`~ConsoleApp.get_option` of your :class:`ConsoleApp` instance.
 
 Additional configuration values of your application can be provided by :ref:`INI/CFG files <config-files>`
@@ -111,10 +121,10 @@ Pythons built-in :class:`~configparser.ConfigParser` class, and also extends it 
 :ref:`complex config value types <config-value-types>`.
 
 The following examples shows a config file with two config sections containing one config option (named
-`logFile`) and two config variables (`configVar1` and `configVar2`)::
+`log_file`) and two config variables (`configVar1` and `configVar2`)::
 
     [aeOptions]
-    logFile = './logs/your_log_file.log'
+    log_file = './logs/your_log_file.log'
 
     [YourSectionName]
     configVar1 = ['list-element1', ('list-element2-1', 'list-element2-2', ), dict()]
@@ -152,13 +162,13 @@ by :mod:`this module <.console>` as well as by :mod:`.core`.
   - :meth:`documented here <.core.AppBase.init_logging>`.
 * ``py_logging_params`` : configuration parameters for to activate python logging
   - :meth:`documented here <logging.conf.dictConfig>`.
-* `logFile` : log file name for ae logging (this is also a config option - set-able as command line arg).
+* `log_file` : log file name for ae logging (this is also a config option - set-able as command line arg).
 
 .. note::
   The value of a config variable can be overwritten by defining an OS environment variable with a name
   that is equal to the :func:`snake+upper-case converted names <ae.core.env_str>` of the config-section and -variable.
   E.g. declare an OS environment variable with the name `AE_OPTIONS_DEBUG_LEVEL` for to overwrite the value
-  of the :ref:`pre-defined config option/variable <pre-defined-config-options>` `debugLevel`.
+  of the :ref:`pre-defined config option/variable <pre-defined-config-options>` `debug_level`.
 
 
 .. _config-options:
@@ -171,7 +181,7 @@ Config options are config variables that are defined exclusively in the hard-cod
 on the command line by adding the option name or id with two leading hyphen characters, followed by an equal
 character and the option value)::
 
-    $ your_application --logFile='your_new_log_file.log'
+    $ your_application --log_file='your_new_log_file.log'
 
 If a command line option is not specified on the command line then :class:`ConsoleApp` is searching if a default value
 for this config option got specified either in a config file or in the call of :meth:`~ConsoleApp.add_option`.
@@ -205,10 +215,10 @@ pre-defined configuration options
 .. _pre-defined-config-options:
 
 For a more verbose output you can specify on the command line or in one of your configuration files
-the pre-defined config option `debugLevel` (or as short option -D) with a value of 2 (for verbose) or 3 (verbose and
+the pre-defined config option `debug_level` (or as short option -D) with a value of 2 (for verbose) or 3 (verbose and
 with timestamp). The supported config option values are documented :data:`here <.core.DEBUG_LEVELS>`.
 
-The value of the second pre-defined config option `logFile` specifies the log file path/file_name, which can
+The value of the second pre-defined config option `log_file` specifies the log file path/file_name, which can
 be abbreviated on the command line with the short option -L.
 
 
@@ -223,19 +233,19 @@ import os
 import datetime
 import threading
 
-from typing import Any, Callable, Dict, Iterable, Optional, Type
-from configparser import ConfigParser, ExtendedInterpolation
+from typing import Any, Callable, Dict, Iterable, Optional, Type, Tuple
+from configparser import ConfigParser, ExtendedInterpolation, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 # noinspection PyProtectedMember
 from ae.core import (                   # type: ignore  # for mypy
-    DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, DATE_TIME_ISO, DATE_ISO,
+    DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVELS, DATE_TIME_ISO, DATE_ISO,
     env_str, main_app_instance, ori_std_out, sys_env_text, sys_platform, _logger,
     AppBase)
 from ae.literal import Literal          # type: ignore
 
 
-__version__ = '0.0.31'
+__version__ = '0.0.32'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
@@ -310,7 +320,7 @@ class ConsoleApp(AppBase):
     * :attr:`_main_cfg_fnam`        main config file name.
     * :attr:`_main_cfg_mod_time`    last modification datetime of main config file.
     * :attr:`_cfg_opt_val_stripper` callable to strip option values.
-    * :attr:`_parsed_args`          ArgumentParser.parse_args() return.
+    * :attr:`_parsed_arguments`     ArgumentParser.parse_args() return.
     """
     def __init__(self, app_title: str = '', app_name: str = '', app_version: str = '', sys_env_id: str = '',
                  debug_level: int = DEBUG_LEVEL_DISABLED, multi_threading: bool = False, suppress_stdout: bool = False,
@@ -397,11 +407,8 @@ class ConsoleApp(AppBase):
             self._cfg_opt_val_stripper: Optional[Callable] = cfg_opt_val_stripper
             #: callable to strip or normalize config option choice values
 
-            self._parsed_args: Optional[Namespace] = None
-            """ used for to retrieve command line args and also as a flag (if is not None) for to ensure that
-            the command line arguments get re-parsed if :meth:`~ConsoleApp.add_option` get called after a first
-            method call which is initiating the re-fetch of the args and INI/cfg vars
-            (like e.g. :meth:`~ConsoleApp.get_option` or :meth:`ConsoleApp.debug_out`).
+            self._parsed_arguments: Optional[Namespace] = None
+            """ storing returned namespace of ArgumentParser.parse_args() call, used for to retrieve command line args
             """
         self.load_cfg_files()
 
@@ -412,6 +419,7 @@ class ConsoleApp(AppBase):
 
         # prepare argument parser
         formatter_class = formatter_class or HelpFormatter
+        # noinspection PyTypeChecker
         self._arg_parser: ArgumentParser = ArgumentParser(
             description=self.app_title, epilog=epilog, formatter_class=formatter_class)   #: ArgumentParser instance
         # changed for to pass mypy checks (current workarounds are use setattr or add type: ignore:
@@ -419,10 +427,10 @@ class ConsoleApp(AppBase):
         setattr(self, 'add_argument', self._arg_parser.add_argument)
 
         # create pre-defined config options
-        self.add_opt('debugLevel', "Verbosity of debug messages send to console and log files", debug_level, 'D',
+        self.add_opt('debug_level', "Verbosity of debug messages send to console and log files", debug_level, 'D',
                      choices=DEBUG_LEVELS.keys())
         if log_file_name is not None:
-            self.add_opt('logFile', "Log file path", log_file_name, 'L')
+            self.add_opt('log_file', "Log file path", log_file_name, 'L')
 
     def _init_logging(self, logging_params: Dict[str, Any]) -> Optional[str]:
         """ determine and init logging config.
@@ -434,14 +442,14 @@ class ConsoleApp(AppBase):
         The logging configuration can be specified in several alternative places. The precedence
         on various existing configurations is (highest precedence first):
 
-        * :ref:`logFile  <pre-defined-config-options>` :ref:`configuration option <config-options>` specifies
+        * :ref:`log_file  <pre-defined-config-options>` :ref:`configuration option <config-options>` specifies
           the name of the used ae log file (will be read after initialisation of this app instance)
         * `logging_params` :ref:`configuration variable <config-variables>` dict with a `py_logging_params` key
           for to activate python logging
         * `logging_params` :ref:`configuration variable <config-variables>` dict with the ae log file name
           in the key `log_file_name`
         * `py_logging_params` :ref:`configuration variable <config-variables>` for to use the python logging module
-        * `logFile` :ref:`configuration variable <config-variables>` specifying ae log file
+        * `log_file` :ref:`configuration variable <config-variables>` specifying ae log file
         * :paramref:`~_init_logging.logging_params` dict passing the python logging configuration in the
           key `py_logging_params` to this method
         * :paramref:`~_init_logging.logging_params` dict passing the ae log file in the logging
@@ -459,8 +467,8 @@ class ConsoleApp(AppBase):
             if lcd:
                 logging_params['py_logging_params'] = lcd                       # .. then cfg py_logging params directly
             else:
-                log_file_name = self.get_var('logFile', default_value=logging_params.get('log_file_name'))
-                logging_params['log_file_name'] = log_file_name                 # .. finally cfg logFile or log file arg
+                log_file_name = self.get_var('log_file', default_value=logging_params.get('log_file_name'))
+                logging_params['log_file_name'] = log_file_name                 # .. finally cfg log_file / log file arg
         super().init_logging(**logging_params)
 
         return None if 'py_logging_params' in logging_params else log_file_name
@@ -468,6 +476,23 @@ class ConsoleApp(AppBase):
     def __del__(self):
         """ deallocate this app instance by calling :func:`AppBase.shutdown`. """
         self.shutdown(exit_code=None)
+
+    @AppBase.debug_level.setter
+    def debug_level(self, debug_level):
+        """ overwriting AppBase setter for to update also the `debug_level` config option. """
+        # Seems there is no way to set the value without referencing self._debug_level:
+        # .. using following statement ..
+        #   AppBase.debug_level.fset(self, debug_level)
+        # .. PyCharm complains: Unexpected argument
+        # .. and pylint: E1101: Function 'debug_level' has no 'fset' member (no-member)
+        # and for the two next alternative statements getting the same pylint error and PyCharm complains:
+        # .. Unresolved attribute reference 'fset' for class 'int'
+        #   super(ConsoleApp, self.__class__).debug_level.fset(self, debug_level)
+        #   super(ConsoleApp, type(self)).debug_level.fset(self, debug_level)
+        # additionally PyCharm is showing this setter not as a property but as an attribute (f icon)
+        self._debug_level = debug_level
+        if self.get_opt('debug_level') != debug_level:
+            self.set_opt('debug_level', debug_level)
 
     def add_argument(self, *args, **kwargs):
         """ define new command line argument.
@@ -491,9 +516,10 @@ class ConsoleApp(AppBase):
 
         This method has an alias named :meth:`get_arg`.
         """
-        if not self._parsed_args:
-            self._parse_args()
-        return getattr(self._parsed_args, name)
+        if not self._parsed_arguments:
+            self.parse_arguments()
+            self.vpo("ConsoleApp.get_argument call before explicit command line args parsing (run_app call missing)")
+        return getattr(self._parsed_arguments, name)
 
     get_arg = get_argument      #: alias of method :meth:`.get_argument`
 
@@ -519,7 +545,9 @@ class ConsoleApp(AppBase):
 
         This method has an alias named :meth:`add_opt`.
         """
-        self._parsed_args = None        # request (re-)parsing of command line args
+        if self._parsed_arguments:
+            self._parsed_arguments = None        # request (re-)parsing of command line args
+            self.vpo("ConsoleApp.add_option call after parse of command line args parsing (re-parse requested)")
         if short_opt == '':
             short_opt = name[0]
 
@@ -548,7 +576,7 @@ class ConsoleApp(AppBase):
     def _change_option(self, name: str, value: Any):
         """ change config option and any references to it. """
         self.cfg_options[name].value = value
-        if name == 'debugLevel':
+        if name == 'debug_level' and self.debug_level != value:
             self.debug_level = value
 
     def get_option(self, name: str, default_value: Optional[Any] = None) -> Any:
@@ -599,11 +627,16 @@ class ConsoleApp(AppBase):
 
         This method has an alias named :meth:`get_opt`.
         """
-        if not self._parsed_args:
-            self._parse_args()
+        if not self._parsed_arguments:
+            self.parse_arguments()
+            self.vpo("ConsoleApp.get_option call before explicit command line args parsing (run_app call missing)")
         return self.cfg_options[name].value if name in self.cfg_options else default_value
 
     get_opt = get_option    #: alias of method :meth:`.get_option`
+
+    def run_app(self):
+        """ prepare app run. call after definition of command line arguments/options and before run of app code. """
+        self.parse_arguments()
 
     def show_help(self):
         """ show help message on console output/stream.
@@ -613,17 +646,17 @@ class ConsoleApp(AppBase):
         """
         self._arg_parser.print_help(file=ori_std_out)
 
-    def _parse_args(self):
+    def parse_arguments(self):
         """ parse all command line args.
 
         This method get normally only called once and after all the options have been added with :meth:`add_option`.
         :meth:`add_option` will then set the determined config file value as the default value and then the
         following call of this method will overwrite it with command line argument value, if given.
         """
-        self._parsed_args = self._arg_parser.parse_args()
+        self._parsed_arguments = self._arg_parser.parse_args()
 
         for name, cfg_opt in self.cfg_options.items():
-            cfg_opt.value = getattr(self._parsed_args, name)
+            cfg_opt.value = getattr(self._parsed_arguments, name)
             if name in self.cfg_opt_choices:
                 for given_value in cfg_opt.value:
                     if self._cfg_opt_val_stripper:
@@ -634,16 +667,16 @@ class ConsoleApp(AppBase):
                                             f"Wrong {name} option value {given_value}; allowed are {allowed_values}")
 
         is_main_app = main_app_instance() is self
-        if is_main_app and not self.py_log_params and 'logFile' in self.cfg_options:
-            self._log_file_name = self.cfg_options['logFile'].value
+        if is_main_app and not self.py_log_params and 'log_file' in self.cfg_options:
+            self._log_file_name = self.cfg_options['log_file'].value
             if self._log_file_name:
                 self.log_file_check()
 
         # finished argument parsing - now print chosen option values to the console
-        self.debug_level = debug_level = self.cfg_options['debugLevel'].value
-        if debug_level >= DEBUG_LEVEL_ENABLED:
+        self.debug_level = self.cfg_options['debug_level'].value
+        if self.debug_level >= DEBUG_LEVEL_ENABLED:
             self.po("  ##  Debug Level(" + ", ".join([str(k) + "=" + v for k, v in DEBUG_LEVELS.items()]) + "):",
-                    debug_level, logger=_logger)
+                    self.debug_level, logger=_logger)
             # print sys env - s.a. pyinstaller docs (http://pythonhosted.org/PyInstaller/runtime-information.html)
             if self.sys_env_id or not is_main_app:
                 self.po(" ###  Initialized ConsoleApp instance for system env id", self.sys_env_id, logger=_logger)
@@ -656,7 +689,6 @@ class ConsoleApp(AppBase):
             self.po("  **  Additional instance of ConsoleApp requested with empty system environment ID",
                     logger=_logger)
         self.po("####  Startup finished....  ####", logger=_logger)
-        self.startup_end = datetime.datetime.now()
 
     def set_option(self, name: str, value: Any, cfg_fnam: Optional[str] = None, save_to_config: bool = True) -> str:
         """ set or change the value of a config option.
@@ -726,6 +758,20 @@ class ConsoleApp(AppBase):
                     err_msg = f"Additional config file {cfg_fnam} not found!"
         return err_msg
 
+    def cfg_section_variable_names(self, section: str, cfg_parser: Optional[ConfigParser] = None) -> Tuple[str, ...]:
+        """ determine current config variable names/keys of the passed config file section.
+
+        :param section:         config file section name.
+        :param cfg_parser:      ConfigParser instance to use (def=self._cfg_parser).
+        :return:                tuple of all config variable names.
+        """
+        try:                                # quicker than asking before with: if cfg_parser.has_section(section):
+            with config_lock:
+                return tuple((cfg_parser or self._cfg_parser).options(section))
+        except NoSectionError:
+            self.dpo(f"ConsoleApp.cfg_section_variable_names: ignoring missing config file section {section}")
+            return tuple()
+
     def _get_cfg_parser_val(self, name: str, section: Optional[str] = None, default_value: Optional[Any] = None,
                             cfg_parser: Optional[ConfigParser] = None) -> Any:
         """ determine thread-safe the value of a config variable from the config file.
@@ -734,7 +780,6 @@ class ConsoleApp(AppBase):
         :param section:         name of the config section (def= :data:`MAIN_SECTION_DEF` also if passed as None/'')
         :param default_value:   default value to return if config value is not specified in any config file.
         :param cfg_parser:      ConfigParser instance to use (def=self._cfg_parser).
-        :return:                value of the config variable.
         """
         with config_lock:
             cfg_parser = cfg_parser or self._cfg_parser
@@ -851,26 +896,3 @@ class ConsoleApp(AppBase):
         return err_msg
 
     set_var = set_variable  #: alias of method :meth:`.set_variable`
-
-    def debug_out(self, *objects, minimum_debug_level: int = DEBUG_LEVEL_VERBOSE, **kwargs):
-        """ special debug version of :func:`builtin print() function <print>`.
-
-        This method will print-out the passed objects only if the :attr:`current debug level
-        <.core.AppBase.debug_level>` of this app instance is higher than the value passed into the
-        :paramref:`~debug_out.minimum_debug_level` argument. In this case the print-out will be
-        delegated onto the :meth:`~.core.AppBase.print_out` method of the :class:`~.core.AppBase` class.
-
-        :param objects:                 objects to be printed out.
-        :param minimum_debug_level:     minimum debug level for to print the passed objects.
-        :param kwargs:                  The :paramref:`~.core.AppBase.print_out.file` argument is documented
-                                        at the :meth:`~.core.AppBase.print_out` method of the
-                                        :class:`~.core.AppBase` class. All other supported kwargs of this method
-                                        are documented at the :func:`print_out() function <~.core.print_out>`
-                                        of the :mod:`~.core` module.
-
-        This method has an alias named :meth:`.dpo`.
-        """
-        if self.debug_level >= minimum_debug_level:
-            self.po(*objects, **kwargs)
-
-    dpo = debug_out         #: alias of method :meth:`.debug_out`
