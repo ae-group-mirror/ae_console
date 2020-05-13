@@ -610,11 +610,20 @@ class TestConfigOptions:
     def test_set_var_file_error(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
         cae = ConsoleApp('test_set_var_file_error', additional_cfg_files=[file_name])
-        val = 'test_value'
-
+        val = 'tt_value'
+        # error in case of not existing ini file
         assert cae.set_var(var_name, val, cfg_fnam=os.path.join(os.getcwd(), 'not_existing' + INI_EXT))
-        with open(file_name, 'w'):      # open to lock file - so next set_var() will fail
-            assert cae.set_var(var_name, val, cfg_fnam=file_name)
+
+        # error in case of invalid section name
+        assert cae.set_var(var_name, val, section="]", cfg_fnam=file_name)
+
+    def test_set_var_while_file_opened(self, config_fna_vna_vva, restore_app_env):
+        file_name, var_name, _ = config_fna_vna_vva()
+        cae = ConsoleApp('test_set_var_while_file_opened', additional_cfg_files=[file_name])
+        val = 'tst_value'
+
+        with open(file_name, 'w'):      # although open file set_var() will not fail
+            assert not cae.set_var(var_name, val, cfg_fnam=file_name)
 
     def test_set_var_with_reload(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
@@ -627,6 +636,28 @@ class TestConfigOptions:
 
         cae.load_cfg_files()
         cfg_val = cae.get_var(var_name)
+        assert cfg_val == val
+
+    def test_set_var_no_option(self, config_fna_vna_vva, restore_app_env):
+        file_name, var_name, _ = config_fna_vna_vva()
+        cae = ConsoleApp('test_set_var_no_option', additional_cfg_files=[file_name])
+        val = 'any_test_value'
+        section_name = 'tstSection'
+        assert not cae.set_var(var_name, val, cfg_fnam=file_name, section=section_name)
+
+        cfg_val = cae.get_var(var_name, section=section_name)
+        assert cfg_val == val
+
+    def test_set_var_with_rename(self, config_fna_vna_vva, restore_app_env):
+        file_name, var_name, _ = config_fna_vna_vva()
+        cae = ConsoleApp('test_set_var_with_rename', additional_cfg_files=[file_name])
+        val = 'test_value'
+        new_var_name = 'new_tst_var_name'
+        assert not cae.set_var(new_var_name, val, cfg_fnam=file_name, old_name=var_name)
+
+        cfg_val = cae.get_var(var_name)
+        assert cfg_val is None
+        cfg_val = cae.get_var(new_var_name)
         assert cfg_val == val
 
     def test_multiple_option_single_char(self, restore_app_env, sys_argv_app_key_restore):
@@ -978,10 +1009,10 @@ class TestConfigOptions:
         assert not cae.set_var(var_name, new_var_val)
         assert cae.is_main_cfg_file_modified()
 
-        # cfg_val has still old value (OtherTestValue) because parser instance got not reloaded
+        # cfg_val has already new value (NEW_test_value) because parser instance got reloaded
         cfg_val = cae.get_var(var_name)
-        assert cfg_val == old_var_val
-        assert cfg_val != new_var_val
+        assert cfg_val != old_var_val
+        assert cfg_val == new_var_val
         assert cae.is_main_cfg_file_modified()
 
         cae.load_cfg_files()

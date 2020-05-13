@@ -245,14 +245,14 @@ from ae.core import (                   # type: ignore  # for mypy
 from ae.literal import Literal          # type: ignore
 
 
-__version__ = '0.0.32'
+__version__ = '0.0.33'
 
 
 INI_EXT: str = '.ini'                   #: INI file extension
 MAIN_SECTION_NAME: str = 'aeOptions'    #: default name of main config section
 
 # Lock for to prevent errors in config var value changes and reloads/reads
-config_lock = threading.Lock()
+config_lock = threading.RLock()
 
 
 def get_user_data_path() -> str:
@@ -401,8 +401,8 @@ class ConsoleApp(AppBase):
             # prepare config files, including determine default config file (last existing INI/CFG file) for
             # .. to write to and if there is no INI file at all then create on demand a <app_name>.INI file in the cwd
             self._cfg_files: list = list()                                  #: list of all found INI/CFG files
-            self._main_cfg_fnam: Optional[str] = None                       #: main config file name
-            self._main_cfg_mod_time: Optional[int] = None                   #: main config file modification datetime
+            self._main_cfg_fnam: str = ''                                   #: main config file name
+            self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
             self.add_cfg_files(additional_cfg_files)
             self._cfg_opt_val_stripper: Optional[Callable] = cfg_opt_val_stripper
             #: callable to strip or normalize config option choice values
@@ -484,7 +484,7 @@ class ConsoleApp(AppBase):
         # .. using following statement ..
         #   AppBase.debug_level.fset(self, debug_level)
         # .. PyCharm complains: Unexpected argument
-        # .. and pylint: E1101: Function 'debug_level' has no 'fset' member (no-member)
+        # .. and pylint with E1101: Function 'debug_level' has no 'fset' member (no-member)
         # and for the two next alternative statements getting the same pylint error and PyCharm complains:
         # .. Unresolved attribute reference 'fset' for class 'int'
         #   super(ConsoleApp, self.__class__).debug_level.fset(self, debug_level)
@@ -786,16 +786,20 @@ class ConsoleApp(AppBase):
             val = cfg_parser.get(section or MAIN_SECTION_NAME, name, fallback=default_value)
         return val
 
-    def load_cfg_files(self):
-        """ load and parse all config files.
+    def load_cfg_files(self, config_modified: bool = True):
+        """  load and parse all config files.
+
+        :param config_modified:     pass False to prevent the refresh/overwrite the initial config file modified date.
         """
         with config_lock:
             for cfg_fnam in reversed(self._cfg_files):
                 if cfg_fnam.endswith(INI_EXT) and os.path.isfile(cfg_fnam):
                     self._main_cfg_fnam = cfg_fnam
-                    self._main_cfg_mod_time = os.path.getmtime(self._main_cfg_fnam)
+                    if config_modified:
+                        self._main_cfg_mod_time = os.path.getmtime(self._main_cfg_fnam)
                     break
 
+            self._cfg_parser = instantiate_config_parser()      # new instance needed in case of renamed config var
             self._cfg_parser.read(self._cfg_files, encoding='utf-8')
 
     def is_main_cfg_file_modified(self) -> bool:
@@ -846,7 +850,8 @@ class ConsoleApp(AppBase):
 
     get_var = get_variable      #: alias of method :meth:`.get_variable`
 
-    def set_variable(self, name: str, value: Any, cfg_fnam: Optional[str] = None, section: Optional[str] = None) -> str:
+    def set_variable(self, name: str, value: Any, cfg_fnam: Optional[str] = None, section: Optional[str] = None,
+                     old_name: str = '') -> str:
         """ set/change the value of a :ref:`config variable <config-variables>` and if exists the related config option.
 
         If the passed string in :paramref:`~set_variable.name` is the id of a defined
@@ -854,11 +859,14 @@ class ConsoleApp(AppBase):
         equal to the value of :data:`MAIN_SECTION_DEF` then the value of this
         config option will be changed too.
 
+        If the section does not exist it will be created (in contrary to Pythons ConfigParser).
+
         :param name:            name/option_id of the config value to set.
         :param value:           value to assign to the config value, specified by the
                                 :paramref:`~set_variable.name` argument.
         :param cfg_fnam:        file name (def= :attr:`~ConsoleApp._main_cfg_fnam`) to save the new option value to.
         :param section:         name of the config section (def= :data:`MAIN_SECTION_DEF`).
+        :param old_name:        old name/option_id that has to be removed (used for to rename config option name/key).
         :return:                ''/empty string on success else error message text.
 
         This method has an alias named :meth:`set_var`.
@@ -887,9 +895,20 @@ class ConsoleApp(AppBase):
                     str_val = value.strftime(DATE_ISO)
                 else:
                     str_val = repr(value)
-                cfg_parser.set(section, name, str_val.replace('%', '%%'))
+                str_val = str_val.replace('%', '%%')
+
+                if not cfg_parser.has_section(section):
+                    cfg_parser.add_section(section)
+                cfg_parser.set(section, name, str_val)
+                if old_name:
+                    cfg_parser.remove_option(section, old_name)
                 with open(cfg_fnam, 'w') as configfile:
                     cfg_parser.write(configfile)
+
+                # refresh self._config_parser cache in case the written var is in one of our already loaded config files
+                # .. while keeping the initial modified date untouched
+                self.load_cfg_files(config_modified=False)
+
             except Exception as ex:
                 err_msg = msg + f"exception: {ex}"
 
