@@ -107,7 +107,7 @@ installation folder, in the current working directory or up to two levels above
 the current working.
 
 Each config file get first searched in the current working directory, then in the user
-data directory (see :func:`get_user_data_path`) and finally in the application
+data directory (see :func:`ae.paths.user_data_path`) and finally in the application
 installation directory.
 
 
@@ -225,8 +225,6 @@ be abbreviated on the command line with the short option -L.
 console helper functions
 ========================
 
-This module is also providing the function :func:`get_user_data_path` for to determine for
-each operating system the directory where an application can store user-specific data and settings.
 
 """
 import os
@@ -237,53 +235,24 @@ from typing import Any, Callable, Dict, Iterable, Optional, Type, Tuple
 from configparser import ConfigParser, ExtendedInterpolation, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
+from ae.system import DATE_TIME_ISO, DATE_ISO, env_str, sys_env_text    # type: ignore
+from ae.paths import Collector                                          # type: ignore
 # noinspection PyProtectedMember
-from ae.core import (                   # type: ignore  # for mypy
-    DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVELS, DATE_TIME_ISO, DATE_ISO,
-    env_str, main_app_instance, ori_std_out, sys_env_text, sys_platform, _logger,
+from ae.core import (                                                   # type: ignore  # for mypy
+    DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVELS,
+    main_app_instance, ori_std_out, _logger,
     AppBase)
-from ae.literal import Literal          # type: ignore
+from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.0.33'
+__version__ = '0.0.34'
 
 
-INI_EXT: str = '.ini'                   #: INI file extension
-MAIN_SECTION_NAME: str = 'aeOptions'    #: default name of main config section
+INI_EXT: str = '.ini'                           #: INI file extension
+MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
 
 # Lock for to prevent errors in config var value changes and reloads/reads
 config_lock = threading.RLock()
-
-
-def get_user_data_path() -> str:
-    """ determine the os-specific absolute path of the directory where user data can be stored.
-
-    :return:    path string of the user data folder.
-    """
-    platform = sys_platform()
-    if platform == 'android':               # pragma: no cover
-        from jnius import autoclass, cast   # type: ignore  # pylint: disable=no-name-in-module, import-outside-toplevel
-        # noinspection PyPep8Naming
-        PythonActivity = autoclass('org.kivy.android.PythonActivity')   # pylint: disable=invalid-name
-        context = cast('android.content.Context', PythonActivity.mActivity)
-        file_p = cast('java.io.File', context.getFilesDir())
-        data_path = file_p.getAbsolutePath()
-
-    elif platform in ('win32', 'cygwin'):
-        data_path = env_str('APPDATA')
-
-    else:
-        if platform == 'ios':
-            data_path = 'Documents'
-        elif platform == 'darwin':
-            data_path = os.path.join('Library', 'Application Support')
-        else:                                       # platform == 'linux' or 'freebsd' or anything else
-            data_path = env_str('XDG_CONFIG_HOME') or '.config'
-
-        if not os.path.isabs(data_path):
-            data_path = os.path.expanduser(os.path.join('~', data_path))
-
-    return data_path
 
 
 def instantiate_config_parser() -> ConfigParser:
@@ -326,7 +295,7 @@ class ConsoleApp(AppBase):
                  debug_level: int = DEBUG_LEVEL_DISABLED, multi_threading: bool = False, suppress_stdout: bool = False,
                  cfg_opt_eval_vars: Optional[dict] = None, additional_cfg_files: Iterable = (),
                  cfg_opt_val_stripper: Optional[Callable] = None,
-                 formatter_class: Optional[Type[HelpFormatter]] = None, epilog: str = "",
+                 formatter_class: Optional[Any] = None, epilog: str = "",
                  **logging_params):
         """ initialize a new :class:`ConsoleApp` instance.
 
@@ -398,12 +367,13 @@ class ConsoleApp(AppBase):
             self.cfg_opt_choices: Dict[str, Iterable] = dict()              #: all valid config option choices
             self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or dict()      #: app-specific vars for init of cfg options
 
-            # prepare config files, including determine default config file (last existing INI/CFG file) for
-            # .. to write to and if there is no INI file at all then create on demand a <app_name>.INI file in the cwd
+            # prepare config files, including default config file (last existing INI/CFG file) for
+            # to write to. If there is no INI file at all then create on demand a <app_name>.INI file in the cwd.
+            # Note: the main INI file default file path will possibly be overwritten by load_cfg_files.
             self._cfg_files: list = list()                                  #: list of all found INI/CFG files
-            self._main_cfg_fnam: str = ''                                   #: main config file name
+            self._main_cfg_fnam: str = os.path.join(os.getcwd(), self.app_name + INI_EXT)  #: def main config file name
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
-            self.add_cfg_files(additional_cfg_files)
+            self.add_cfg_files(*additional_cfg_files)
             self._cfg_opt_val_stripper: Optional[Callable] = cfg_opt_val_stripper
             #: callable to strip or normalize config option choice values
 
@@ -418,8 +388,8 @@ class ConsoleApp(AppBase):
         self.po("####  Initialization......  ####", logger=_logger)
 
         # prepare argument parser
-        formatter_class = formatter_class or HelpFormatter
-        # noinspection PyTypeChecker
+        if not formatter_class:
+            formatter_class = HelpFormatter
         self._arg_parser: ArgumentParser = ArgumentParser(
             description=self.app_title, epilog=epilog, formatter_class=formatter_class)   #: ArgumentParser instance
         # changed for to pass mypy checks (current workarounds are use setattr or add type: ignore:
@@ -589,9 +559,9 @@ class ConsoleApp(AppBase):
         Underneath you find the order of the value search - the first specified/found value will be returned:
 
         #. command line arguments option value
-        #. :ref:`config files <config-files>` added in your app code via one of the methods :meth:`.add_cfg_file` or
-           :meth:`add_cfg_files` (these files will be searched for the config option value in reversed order - so the
-           last added :ref:`config file <config-files>` will be the first one where the config option will be searched)
+        #. :ref:`config files <config-files>` added in your app code via the method
+           :meth:`add_cfg_files`. These files will be searched for the config option value in reversed order - so the
+           last added :ref:`config file <config-files>` will be the first one where the config option will be searched.
         #. :ref:`config files <config-files>` added via :paramref:`~ConsoleApp.additional_cfg_files` argument of
            :meth:`ConsoleApp.__init__` (searched in the reversed order)
         #. <app_name>.INI file in the <cwd>
@@ -708,55 +678,25 @@ class ConsoleApp(AppBase):
 
     set_opt = set_option    #: alias of method :meth:`.set_option`
 
-    def add_cfg_file(self, cfg_file_name: str) -> bool:
-        """ add :paramref:`~add_cfg_file.cfg_file_name` to the recognized :attr:`config files <ConsoleApp._cfg_files>`.
-
-        :param cfg_file_name:   new config file name to add.
-        :return:                True, if passed config file exists and was not in the list before, else False.
-        """
-        if cfg_file_name not in self._cfg_files and os.path.isfile(cfg_file_name):
-            self._cfg_files.append(cfg_file_name)
-            return True
-        return False
-
-    def add_cfg_files(self, additional_cfg_files: Iterable = ()) -> str:
+    def add_cfg_files(self, *additional_cfg_files: str) -> str:
         """ extend list of found config files (in :attr:`~ConsoleApp.config_files`).
 
-        :param additional_cfg_files:    additional/user-defined config files.
-        :return:                        ""/empty string on success else error message text.
+        :param additional_cfg_files:    additional/user-defined config file names (searched in cwd and .
+        :return:                        ""/empty string on success else line-separated list of error message text.
         """
-        cwd_path = os.getcwd()
-        usr_path = get_user_data_path()
-        app_path = self._app_path
-        app_name = self.app_name
+        coll = Collector(app=self.app_path, app_name=self.app_name)
+        coll.collect('{cwd}/../..', '{app}', '{usr}', '{usr}/{app_name}', '{cwd}/..', '{cwd}',
+                     append=('.app_env.cfg', '.sys_env.cfg', '.sys_env' + (self.sys_env_id or 'TEST') + '.cfg',),
+                     only_first_of=())
+        coll.collect('{app}', '{usr}', '{usr}/{app_name}', '{cwd}',
+                     append=('{app_name}.cfg', '{app_name}.ini'), only_first_of=())
+        if additional_cfg_files:
+            coll.collect('{cwd}', '{app}', select=additional_cfg_files, only_first_of=())
 
-        # prepare config env, first compile cfg/ini files - the last one overwrites previously loaded values
-        cwd_path_fnam = os.path.join(cwd_path, app_name)
-        usr_app_path = os.path.join(usr_path, app_name)
-        self._main_cfg_fnam = cwd_path_fnam + INI_EXT  # default, will be overwritten by load_cfg_files()
-        sys_env_id = self.sys_env_id or 'TEST'
-        for cfg_path in (os.path.join(cwd_path, '..', '..'), app_path, usr_path, usr_app_path,
-                         os.path.join(cwd_path, '..'), cwd_path, ):
-            for cfg_file in ('.app_env.cfg', '.sys_env' + sys_env_id + '.cfg', '.sys_env.cfg', ):
-                self.add_cfg_file(os.path.join(cfg_path, cfg_file))
+        self._cfg_files.extend(coll.files)
 
-        app_path_fnam = os.path.join(app_path, app_name)
-        usr_path_fnam = os.path.join(usr_path, app_name)
-        usr_app_path_fnam = os.path.join(usr_path, app_name)
-        for cfg_file in (app_path_fnam + '.cfg', app_path_fnam + INI_EXT,
-                         usr_path_fnam + '.cfg', usr_path_fnam + INI_EXT,
-                         usr_app_path_fnam + '.cfg', usr_app_path_fnam + INI_EXT,
-                         cwd_path_fnam + '.cfg', cwd_path_fnam + INI_EXT):
-            self.add_cfg_file(cfg_file)
-
-        err_msg = ""
-        for cfg_fnam in additional_cfg_files:
-            add_cfg_path_fnam = os.path.join(cwd_path, cfg_fnam)
-            if not self.add_cfg_file(add_cfg_path_fnam):
-                add_cfg_path_fnam = os.path.join(app_path, cfg_fnam)
-                if not self.add_cfg_file(add_cfg_path_fnam):
-                    err_msg = f"Additional config file {cfg_fnam} not found!"
-        return err_msg
+        return "\n".join(f"Additional config file {cfg_fnam} not found!"
+                         for cfg_fnam, count in coll.suffix_failed.items() if count == 2)
 
     def cfg_section_variable_names(self, section: str, cfg_parser: Optional[ConfigParser] = None) -> Tuple[str, ...]:
         """ determine current config variable names/keys of the passed config file section.
