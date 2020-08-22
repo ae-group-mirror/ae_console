@@ -12,11 +12,11 @@ features. The attributes and methods of :class:`~ae.core.AppBase`
 are documented in the :mod:`docstrings of the core module <ae.core>`.
 
 
-basic usage of console application class
-----------------------------------------
-
 .. _app-title:
 .. _app-version:
+
+basic usage of console application class
+----------------------------------------
 
 At the top of your python application main file/module create an instance of the class :class:`ConsoleApp`::
 
@@ -45,7 +45,7 @@ automatically initialized for your application.
 
 
 define command line arguments and options
-_________________________________________
+-----------------------------------------
 
 With the methods :meth:`~ConsoleApp.add_argument` and :meth:`~ConsoleApp.add_option` of your just created
 :class:`ConsoleApp` instance you can then define the command line arguments and
@@ -73,7 +73,7 @@ configuration files, sections, variables and options
 .. _config-files:
 
 config files
-............
+^^^^^^^^^^^^
 
 You can create and use separate config files for each of your applications, used system environments and data domains.
 A config file consists of config sections, each section provides config variables and config options
@@ -114,7 +114,7 @@ installation directory.
 .. _config-sections:
 
 config sections
-...............
+^^^^^^^^^^^^^^^
 
 This module is supporting the `config file format <https://en.wikipedia.org/wiki/INI_file>`_ of
 Pythons built-in :class:`~configparser.ConfigParser` class, and also extends it with
@@ -132,14 +132,14 @@ The following examples shows a config file with two config sections containing o
 
 .. _config-main-section:
 
-The ae modules are using the main config section `aeOptions` (defined by :data:`MAIN_SECTION_DEF`)
+The ae modules are using the main config section `aeOptions` (defined by :data:`MAIN_SECTION_NAME`)
 for to store the values of any pre-defined :ref:`config option <config-options>` and
 :ref:`config variables <config-variables>`.
 
 .. _config-variables:
 
 config variables
-................
+^^^^^^^^^^^^^^^^
 
 Config variables can be defined in any config section and can hold any data type. In the example
 config file above the config variable `configVar1` has a list with 3 elements: the first element
@@ -158,15 +158,17 @@ by calling the :meth:`~ConsoleApp.set_variable` method.
 The following pre-defined config variables in the :ref:`main config section <config-main-section>` are recognized
 by :mod:`this module <.console>` as well as by :mod:`.core`.
 
-* `logging_params` : general logging configuration parameters (py and ae logging)
+* ``logging_params`` : general logging configuration parameters (py and ae logging)
   - :meth:`documented here <.core.AppBase.init_logging>`.
 * ``py_logging_params`` : configuration parameters for to activate python logging
-  - :meth:`documented here <logging.conf.dictConfig>`.
-* `log_file` : log file name for ae logging (this is also a config option - set-able as command line arg).
+  - `documented in the Python docs
+  <https://docs.python.org/3.6/library/logging.config.html#logging.config.dictConfig>`_.
+* ``log_file`` : log file name for ae logging (this is also a config option - set-able as command line arg).
 
 .. note::
   The value of a config variable can be overwritten by defining an OS environment variable with a name
-  that is equal to the :func:`snake+upper-case converted names <ae.core.env_str>` of the config-section and -variable.
+  that is equal to the :func:`snake+upper-case converted names <ae.system.env_str>` of the config-section
+  and -variable.
   E.g. declare an OS environment variable with the name `AE_OPTIONS_DEBUG_LEVEL` for to overwrite the value
   of the :ref:`pre-defined config option/variable <pre-defined-config-options>` `debug_level`.
 
@@ -174,10 +176,10 @@ by :mod:`this module <.console>` as well as by :mod:`.core`.
 .. _config-options:
 
 config options
-..............
+^^^^^^^^^^^^^^
 
 Config options are config variables that are defined exclusively in the hard-coded section
-:data:`aeOptions <MAIN_SECTION_DEF>`. The value of a config option can optionally be given/overwritten
+:data:`aeOptions <MAIN_SECTION_NAME>`. The value of a config option can optionally be given/overwritten
 on the command line by adding the option name or id with two leading hyphen characters, followed by an equal
 character and the option value)::
 
@@ -202,7 +204,7 @@ Use the :meth:`~ConsoleApp.set_option` if you want to change the value of a conf
 .. _config-value-types:
 
 config value types
-..................
+^^^^^^^^^^^^^^^^^^
 
 A configuration options can be of any type. With the :paramref:`~ConsoleApp.add_option.value` argument and
 :attr:`special encapsulated strings <.literal.Literal.value>` you're able to specify any type
@@ -210,21 +212,24 @@ for your config options and variables (like dict/list/tuple/datetime/... or any 
 
 
 pre-defined configuration options
-.................................
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. _pre-defined-config-options:
 
 For a more verbose output you can specify on the command line or in one of your configuration files
-the pre-defined config option `debug_level` (or as short option -D) with a value of 2 (for verbose) or 3 (verbose and
-with timestamp). The supported config option values are documented :data:`here <.core.DEBUG_LEVELS>`.
+the pre-defined config option `debug_level` (or as short option -D) with a value of 2 (for verbose).
+The supported config option values are documented :data:`here <.core.DEBUG_LEVELS>`.
 
 The value of the second pre-defined config option `log_file` specifies the log file path/file_name, which can
 be abbreviated on the command line with the short option -L.
 
 
 console helper functions
-========================
+------------------------
 
+The function :func:`instantiate_config_parser` ensures that the :class:`~configparser.ConfigParser` instance
+is correctly configured, e.g. to support case-sensitive config variable names and to use
+:class:`ExtendedInterpolation` for the interpolation argument.
 
 """
 import os
@@ -245,7 +250,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.0.34'
+__version__ = '0.0.35'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
@@ -262,7 +267,7 @@ def instantiate_config_parser() -> ConfigParser:
     # mypy V 0.740 bug - see mypy issue #5062: adding pragma "type: ignore" breaks PyCharm (showing
     # .. inspection warning "Non-self attribute could not be type-hinted"), but
     # .. also cast(Callable[[Arg(str, 'option')], str], str) and # type: ... is not working
-    # .. (because Arg is not defined)
+    # .. (because Arg is not available in plain mypy, only in the extra mypy_extensions package)
     setattr(cfg_parser, 'optionxform', str)
     return cfg_parser
 
@@ -553,7 +558,7 @@ class ConsoleApp(AppBase):
         """ get the value of a config option specified by it's name (option id).
 
         The returned value has the same type as the value specified in the :meth:`add_option` call and
-        gets taken either from the command line, the default section (:data:`MAIN_SECTION_DEF`) of any found
+        gets taken either from the command line, the default section (:data:`MAIN_SECTION_NAME`) of any found
         config variable file (with file extension INI or CFG) or from the default values specified in your python code.
 
         Underneath you find the order of the value search - the first specified/found value will be returned:
@@ -717,7 +722,7 @@ class ConsoleApp(AppBase):
         """ determine thread-safe the value of a config variable from the config file.
 
         :param name:            name/option_id of the config variable.
-        :param section:         name of the config section (def= :data:`MAIN_SECTION_DEF` also if passed as None/'')
+        :param section:         name of the config section (def= :data:`MAIN_SECTION_NAME` also if passed as None/'')
         :param default_value:   default value to return if config value is not specified in any config file.
         :param cfg_parser:      ConfigParser instance to use (def=self._cfg_parser).
         """
@@ -757,7 +762,7 @@ class ConsoleApp(AppBase):
 
         :param name:            id/name of a :ref:`config option <config-options>` or the name of a existing/declared
                                 :ref:`config variable <config-variables>`.
-        :param section:         name of the :ref:`config section <config-sections>` (def= :data:`MAIN_SECTION_DEF`).
+        :param section:         name of the :ref:`config section <config-sections>` (def= :data:`MAIN_SECTION_NAME`).
         :param default_value:   default value to return if config value is not specified in any config file.
         :param cfg_parser:      optional ConfigParser instance to use (def= :attr:`~ConsoleApp._cfg_parser`).
         :param value_type:      optional type of the config value. Only used for :ref:`config-variables` and
@@ -769,7 +774,7 @@ class ConsoleApp(AppBase):
                                   the :paramref:`~get_variable.section` and :paramref:`~get_variable.name` arguments.
                                 * **config option** with an id equal to the :paramref:`~get_variable.name` argument
                                   and with a passed :paramref:`~get_variable.section` value that is either empty,
-                                  None or equal to the value of :data:`MAIN_SECTION_DEF`.
+                                  None or equal to the value of :data:`MAIN_SECTION_NAME`.
                                 * **config variable** with a name and section equal to the values passed into
                                   the :paramref:`~get_variable.name` and :paramref:`~get_variable.section` arguments.
 
@@ -796,7 +801,7 @@ class ConsoleApp(AppBase):
 
         If the passed string in :paramref:`~set_variable.name` is the id of a defined
         :ref:`config option <config-options>` and :paramref:`~set_variable.section` is either empty or
-        equal to the value of :data:`MAIN_SECTION_DEF` then the value of this
+        equal to the value of :data:`MAIN_SECTION_NAME` then the value of this
         config option will be changed too.
 
         If the section does not exist it will be created (in contrary to Pythons ConfigParser).
@@ -805,7 +810,7 @@ class ConsoleApp(AppBase):
         :param value:           value to assign to the config value, specified by the
                                 :paramref:`~set_variable.name` argument.
         :param cfg_fnam:        file name (def= :attr:`~ConsoleApp._main_cfg_fnam`) to save the new option value to.
-        :param section:         name of the config section (def= :data:`MAIN_SECTION_DEF`).
+        :param section:         name of the config section (def= :data:`MAIN_SECTION_NAME`).
         :param old_name:        old name/option_id that has to be removed (used for to rename config option name/key).
         :return:                ''/empty string on success else error message text.
 
