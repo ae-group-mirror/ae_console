@@ -36,6 +36,7 @@ full-featured applications with Python.
 
 ## installation
 
+
 Execute the following command for to use the ae.console module in your
 application. It will install ae.console into your python (virtual) environment:
  
@@ -44,7 +45,7 @@ pip install ae-console
 ```
 
 If you instead want to contribute to this portion then first fork
-[the ae-console repository at GitLab](https://gitlab.com/ae-group/ae_console "ae.console code repository"),
+[the ae_console repository at GitLab](https://gitlab.com/ae-group/ae_console "ae.console code repository"),
 then pull it to your machine and finally execute the following command in the root folder
 of this repository (ae_console):
 
@@ -64,6 +65,8 @@ More info on the features and usage of this portion are available at
 [ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/ae.console.html#module-ae.console
 "ae_console documentation").
 
-<!-- Common files version 0.0.34 deployed (with 0.0.34)
-     to the ae_console module version 0.0.24.
+<!-- Common files version 0.0.60 deployed version 0.1.36 (with 0.0.60)
+     to https://gitlab.com/ae-group as ae_console module as well as
+     to https://ae-group.gitlab.io with CI check results as well as
+     to https://pypi.org/project/ae-console as namespace portion ae-console.
 -->
