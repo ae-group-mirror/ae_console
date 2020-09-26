@@ -167,7 +167,7 @@ by :mod:`this module <.console>` as well as by :mod:`.core`.
 
 .. note::
   The value of a config variable can be overwritten by defining an OS environment variable with a name
-  that is equal to the :func:`snake+upper-case converted names <ae.system.env_str>` of the config-section
+  that is equal to the :func:`snake+upper-case converted names <ae.base.env_str>` of the config-section
   and -variable.
   E.g. declare an OS environment variable with the name `AE_OPTIONS_DEBUG_LEVEL` for to overwrite the value
   of the :ref:`pre-defined config option/variable <pre-defined-config-options>` `debug_level`.
@@ -240,7 +240,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Type, Tuple
 from configparser import ConfigParser, ExtendedInterpolation, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
-from ae.system import DATE_TIME_ISO, DATE_ISO, env_str, sys_env_text    # type: ignore
+from ae.base import DATE_TIME_ISO, DATE_ISO, env_str, sys_env_text      # type: ignore
 from ae.paths import Collector                                          # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
@@ -250,7 +250,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.36'
+__version__ = '0.1.37'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension

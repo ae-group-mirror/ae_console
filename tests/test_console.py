@@ -16,7 +16,7 @@ except ImportError:
     from .conftest import delete_files
 
 
-from ae.system import DATE_ISO, DATE_TIME_ISO
+from ae.base import DATE_ISO, DATE_TIME_ISO
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
 from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp
