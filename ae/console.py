@@ -241,7 +241,7 @@ from configparser import ConfigParser, ExtendedInterpolation, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 from ae.base import DATE_TIME_ISO, DATE_ISO, env_str, sys_env_text      # type: ignore
-from ae.paths import Collector                                          # type: ignore
+from ae.paths import norm_path, Collector                               # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
     DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVELS,
@@ -250,7 +250,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.37'
+__version__ = '0.1.38'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
@@ -432,18 +432,24 @@ class ConsoleApp(AppBase):
 
         """
         log_file_name = ""
+
         cfg_logging_params = self.get_var('logging_params')
         if cfg_logging_params:
             logging_params = cfg_logging_params
-            if 'py_logging_params' not in logging_params:                       # .. there then cfg py_logging params
-                log_file_name = logging_params.get('log_file_name', '')         # .. then cfg logging_params log file
+            if 'py_logging_params' not in logging_params:                   # .. there then cfg py_logging params
+                log_file_name = logging_params.get('log_file_name', '')     # .. then cfg logging_params log file
+
         if 'py_logging_params' not in logging_params and not log_file_name:
             lcd = self.get_var('py_logging_params')
             if lcd:
-                logging_params['py_logging_params'] = lcd                       # .. then cfg py_logging params directly
+                logging_params['py_logging_params'] = lcd                   # .. then cfg py_logging params directly
             else:
                 log_file_name = self.get_var('log_file', default_value=logging_params.get('log_file_name'))
-                logging_params['log_file_name'] = log_file_name                 # .. finally cfg log_file / log file arg
+                logging_params['log_file_name'] = log_file_name             # .. finally cfg log_file / log file arg
+
+        if logging_params.get('log_file_name'):                             # replace placeholders if has log file path
+            logging_params['log_file_name'] = norm_path(logging_params['log_file_name'])
+
         super().init_logging(**logging_params)
 
         return None if 'py_logging_params' in logging_params else log_file_name
