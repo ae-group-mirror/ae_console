@@ -250,7 +250,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.38'
+__version__ = '0.1.39'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
@@ -667,8 +667,8 @@ class ConsoleApp(AppBase):
         self.startup_end = datetime.datetime.now()
         self.po(self.app_name, " V", self.app_version, "  Args  parsed", self.startup_end, logger=_logger)
         if not is_main_app and not self.sys_env_id:
-            self.po("  **  Additional instance of ConsoleApp requested with empty system environment ID",
-                    logger=_logger)
+            self.dpo("  ##  Additional instance of ConsoleApp requested with empty system environment ID",
+                     logger=_logger)
         self.po("####  Startup finished....  ####", logger=_logger)
 
     def set_option(self, name: str, value: Any, cfg_fnam: Optional[str] = None, save_to_config: bool = True) -> str:
