@@ -10,7 +10,7 @@ from argparse import ArgumentError
 from typing import cast, Any
 
 import pytest
-from conftest import delete_files
+from conftest import skip_gitlab_ci, delete_files
 
 from ae.base import DATE_ISO, DATE_TIME_ISO
 from ae.paths import norm_path
@@ -471,6 +471,7 @@ class TestConfigOptions:
         os.environ['AE_SYSTEMS_TEST_VAR_NAME'] = vv
         assert cae.get_var(vn, section='aeSystems') == vv
 
+    @skip_gitlab_ci     # skip on gitlab because it does not provide user/home ~/.config folder
     def test_get_var_file_order(self, restore_app_env, config_fna_vna_vva):
         cwd_file, var_name, cwd_value = config_fna_vna_vva(file_name='test' + INI_EXT, var_value='cwd')
         cae = ConsoleApp('test_get_var_file_order', app_name='test')
