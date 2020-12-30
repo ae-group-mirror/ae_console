@@ -10,13 +10,10 @@ from argparse import ArgumentError
 from typing import cast, Any
 
 import pytest
-try:
-    from conftest import delete_files
-except ImportError:
-    from .conftest import delete_files
-
+from conftest import delete_files
 
 from ae.base import DATE_ISO, DATE_TIME_ISO
+from ae.paths import norm_path
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
 from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp
@@ -26,13 +23,15 @@ from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp
 def config_fna_vna_vva(request):
     """ prepare config test files """
     def _setup_and_teardown(file_name='test_config.cfg', var_name='test_config_var', var_value: Any = 'test_value'):
+        file_name = norm_path(file_name)
         if os.path.sep not in file_name:
             file_name = os.path.join(os.getcwd(), file_name)
         with open(file_name, 'w') as f:
             f.write(f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}")
 
         def _tear_down():               # using yield instead of finalizer does not execute the teardown part
-            os.remove(file_name)
+            if os.path.exists(file_name):       # some tests are deleting the config file explicitly
+                os.remove(file_name)
         request.addfinalizer(_tear_down)
 
         return file_name, var_name, var_value
@@ -84,23 +83,25 @@ class TestAeLogging:
     def test_logging_params_dict_from_cfg(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, var_val = config_fna_vna_vva(var_name='logging_params',
                                                           var_value=dict(log_file_name='test_log_from_cfg.log'))
+        log_msg = "test log message"
+
         cae = ConsoleApp('test_ae_logging_params_dict_from_ini', additional_cfg_files=[file_name])
         cfg_val = cae.get_var(var_name)
         try:
             assert cfg_val == var_val
+            assert cae.get_var(var_name) == var_val
             assert cae._log_file_name == cfg_val['log_file_name']
+            assert not os.path.exists(cfg_val['log_file_name'])
+
+            cae.po(log_msg)
+            assert os.path.exists(cfg_val['log_file_name'])
+
             logging.shutdown()
         finally:
-            assert delete_files(cfg_val['log_file_name']) == 1
+            assert delete_files(cfg_val['log_file_name'], ret_type="contents") == ["\n" + log_msg]
 
     def test_app_instances_reset2(self):
         assert main_app_instance() is None
-
-    def test_invalid_log_file_name(self, restore_app_env):
-        log_file = ':/:invalid:/:'
-        with pytest.raises(FileNotFoundError):
-            ConsoleApp('test_invalid_log_file_name', log_file_name=log_file)
-        assert not os.path.exists(log_file)
 
     def test_app_instances_reset3(self):
         assert main_app_instance() is None
@@ -469,6 +470,26 @@ class TestConfigOptions:
         vv = 'testVarValue'
         os.environ['AE_SYSTEMS_TEST_VAR_NAME'] = vv
         assert cae.get_var(vn, section='aeSystems') == vv
+
+    def test_get_var_file_order(self, restore_app_env, config_fna_vna_vva):
+        cwd_file, var_name, cwd_value = config_fna_vna_vva(file_name='test' + INI_EXT, var_value='cwd')
+        cae = ConsoleApp('test_get_var_file_order', app_name='test')
+        assert cae.get_var(var_name) == cwd_value                       # cwd variable
+
+        usr_file, _, usr_value = config_fna_vna_vva(file_name='{usr}/test' + INI_EXT, var_value='usr')
+        assert usr_file != cwd_file
+        cae.add_cfg_files()
+        cae.load_cfg_files()
+        assert cae.get_var(var_name) == usr_value                       # usr variable overwrite cwd variable
+
+        app_path = norm_path("{app}")
+        if not os.path.exists(app_path):
+            os.mkdir(app_path)  # will not be removed after test run!
+        app_file, _, app_value = config_fna_vna_vva(file_name='{app}/test' + INI_EXT, var_value='app')
+        assert app_file != cwd_file and app_file != usr_file
+        cae.add_cfg_files()
+        cae.load_cfg_files()
+        assert cae.get_var(var_name) == app_value                       # usr_app variable overwrites cwd+usr variables
 
     def test_set_var_basics(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
         file_name, var_name, _ = config_fna_vna_vva(file_name='test' + INI_EXT)

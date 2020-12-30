@@ -250,7 +250,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.39'
+__version__ = '0.1.40'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
@@ -378,7 +378,9 @@ class ConsoleApp(AppBase):
             self._cfg_files: list = list()                                  #: list of all found INI/CFG files
             self._main_cfg_fnam: str = os.path.join(os.getcwd(), self.app_name + INI_EXT)  #: def main config file name
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
-            self.add_cfg_files(*additional_cfg_files)
+            warn_msg = self.add_cfg_files(*additional_cfg_files)
+            if warn_msg:
+                self.dpo(f"ConsoleApp.__init__(): config files collection warning: {warn_msg}")
             self._cfg_opt_val_stripper: Optional[Callable] = cfg_opt_val_stripper
             #: callable to strip or normalize config option choice values
 
@@ -389,8 +391,8 @@ class ConsoleApp(AppBase):
 
         log_file_name = self._init_logging(logging_params)
 
-        self.po(self.app_name, " V", app_version, " Startup", self.startup_beg, self.app_title, logger=_logger)
-        self.po("####  Initialization......  ####", logger=_logger)
+        self.dpo(self.app_name, "      startup", self.startup_beg, self.app_title, logger=_logger)
+        self.dpo(f"####  {self.app_key} initialization......  ####", logger=_logger)
 
         # prepare argument parser
         if not formatter_class:
@@ -567,7 +569,8 @@ class ConsoleApp(AppBase):
         gets taken either from the command line, the default section (:data:`MAIN_SECTION_NAME`) of any found
         config variable file (with file extension INI or CFG) or from the default values specified in your python code.
 
-        Underneath you find the order of the value search - the first specified/found value will be returned:
+        Underneath you find the order of the value search - the first specified/found value will be returned
+        (implemented in :meth:`.add_cfg_files`):
 
         #. command line arguments option value
         #. :ref:`config files <config-files>` added in your app code via the method
@@ -575,30 +578,36 @@ class ConsoleApp(AppBase):
            last added :ref:`config file <config-files>` will be the first one where the config option will be searched.
         #. :ref:`config files <config-files>` added via :paramref:`~ConsoleApp.additional_cfg_files` argument of
            :meth:`ConsoleApp.__init__` (searched in the reversed order)
-        #. <app_name>.INI file in the <cwd>
-        #. <app_name>.CFG file in the <cwd>
         #. <app_name>.INI file in the <app_dir>
         #. <app_name>.CFG file in the <app_dir>
+        #. <app_name>.INI file in the <usr_dir>
+        #. <app_name>.CFG file in the <usr_dir>
+        #. <app_name>.INI file in the <cwd>
+        #. <app_name>.CFG file in the <cwd>
+        #. .sys_env.cfg in the <app_dir>
+        #. .sys_env<sys_env_id>.cfg in the <app_dir>
+        #. .app_env.cfg in the <app_dir>
+        #. .sys_env.cfg in the <usr_dir>
+        #. .sys_env<sys_env_id>.cfg in the <usr_dir>
+        #. .app_env.cfg in the <usr_dir>
         #. .sys_env.cfg in the <cwd>
         #. .sys_env<sys_env_id>.cfg in the <cwd>
         #. .app_env.cfg in the <cwd>
         #. .sys_env.cfg in the parent folder of the <cwd>
         #. .sys_env<sys_env_id>.cfg in the parent folder of the <cwd>
         #. .app_env.cfg in the parent folder of the <cwd>
-        #. .sys_env.cfg in the <app_dir>
-        #. .sys_env<sys_env_id>.cfg in the <app_dir>
-        #. .app_env.cfg in the <app_dir>
         #. .sys_env.cfg in the parent folder of the parent folder of the <cwd>
         #. .sys_env<sys_env_id>.cfg in the parent folder of the parent folder of the <cwd>
         #. .app_env.cfg in the parent folder of the parent folder of the <cwd>
         #. value argument passed into the add_opt() method call (defining the option)
         #. default_value argument passed into this method (only if :class:`~ConsoleApp.add_option` didn't get called)
 
-        **Placeholders in the above search order lists are**:
+        **Placeholders in the above search order lists are** (see also :data:`ae.paths.PATH_PLACEHOLDERS`):
 
         * *<cwd>* is the current working directory of your application (determined with :func:`os.getcwd`)
-        * *<app_name>* is the base name without extension of your main python code file.
-        * *<app_dir>* is the application directory (where your <app_name>.py or the exe file of your app is situated)
+        * *<app_name>* is the base app name without extension of your main python code file.
+        * *<app_dir>* is the application data directory (APPDATA/<app_name> in Windows, ~/.config/<app_name> in Linux).
+        * *<usr_dir>* is the user data directory (APPDATA in Windows, ~/.config in Linux).
         * *<sys_env_id>* is specified as argument of :meth:`ConsoleApp.__init__`
 
         :param name:            id of the config option.
@@ -617,7 +626,8 @@ class ConsoleApp(AppBase):
 
     def run_app(self):
         """ prepare app run. call after definition of command line arguments/options and before run of app code. """
-        self.parse_arguments()
+        if not self._parsed_arguments:
+            self.parse_arguments()
 
     def show_help(self):
         """ show help message on console output/stream.
@@ -634,6 +644,7 @@ class ConsoleApp(AppBase):
         :meth:`add_option` will then set the determined config file value as the default value and then the
         following call of this method will overwrite it with command line argument value, if given.
         """
+        self.vpo("ConsoleApp.parse_arguments()")
         self._parsed_arguments = self._arg_parser.parse_args()
 
         for name, cfg_opt in self.cfg_options.items():
@@ -665,11 +676,10 @@ class ConsoleApp(AppBase):
             self.po(sys_env_text(extra_sys_env_dict={'main cfg': self._main_cfg_fnam}), logger=_logger)
 
         self.startup_end = datetime.datetime.now()
-        self.po(self.app_name, " V", self.app_version, "  Args  parsed", self.startup_end, logger=_logger)
+        self.po(self.app_name, " V", self.app_version, "   args parsed", self.startup_end, logger=_logger)
         if not is_main_app and not self.sys_env_id:
-            self.dpo("  ##  Additional instance of ConsoleApp requested with empty system environment ID",
-                     logger=_logger)
-        self.po("####  Startup finished....  ####", logger=_logger)
+            self.dpo("  ##  Warning: Additional ConsoleApp instance with empty system environment ID", logger=_logger)
+        self.dpo(f"####  {self.app_key} startup finished....  ####", logger=_logger)
 
     def set_option(self, name: str, value: Any, cfg_fnam: Optional[str] = None, save_to_config: bool = True) -> str:
         """ set or change the value of a config option.
@@ -692,22 +702,23 @@ class ConsoleApp(AppBase):
     def add_cfg_files(self, *additional_cfg_files: str) -> str:
         """ extend list of found config files (in :attr:`~ConsoleApp.config_files`).
 
-        :param additional_cfg_files:    additional/user-defined config file names (searched in cwd and .
+        :param additional_cfg_files:    additional/user-defined config file names.
         :return:                        ""/empty string on success else line-separated list of error message text.
         """
-        coll = Collector(app=self.app_path, app_name=self.app_name)
-        coll.collect('{cwd}/../..', '{app}', '{usr}', '{usr}/{app_name}', '{cwd}/..', '{cwd}',
+        std_search_paths = ('{cwd}', '{usr}', '{app}', )    # reversed - latter item overwrites former
+        coll = Collector(app_name=self.app_name)
+        coll.collect('{cwd}/../..', '{cwd}/..', *std_search_paths,
                      append=('.app_env.cfg', '.sys_env.cfg', '.sys_env' + (self.sys_env_id or 'TEST') + '.cfg',),
                      only_first_of=())
-        coll.collect('{app}', '{usr}', '{usr}/{app_name}', '{cwd}',
+        coll.collect(*std_search_paths,
                      append=('{app_name}.cfg', '{app_name}.ini'), only_first_of=())
         if additional_cfg_files:
-            coll.collect('{cwd}', '{app}', select=additional_cfg_files, only_first_of=())
+            coll.collect(*std_search_paths, select=additional_cfg_files, only_first_of=())
 
         self._cfg_files.extend(coll.files)
 
-        return "\n".join(f"Additional config file {cfg_fnam} not found!"
-                         for cfg_fnam, count in coll.suffix_failed.items() if count == 2)
+        return "\n".join(f"Additional config file {cfg_fnam} not found ({count} time)!"
+                         for cfg_fnam, count in coll.suffix_failed.items())
 
     def cfg_section_variable_names(self, section: str, cfg_parser: Optional[ConfigParser] = None) -> Tuple[str, ...]:
         """ determine current config variable names/keys of the passed config file section.
