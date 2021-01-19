@@ -250,7 +250,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.40'
+__version__ = '0.1.41'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
@@ -705,13 +705,13 @@ class ConsoleApp(AppBase):
         :param additional_cfg_files:    additional/user-defined config file names.
         :return:                        ""/empty string on success else line-separated list of error message text.
         """
-        std_search_paths = ('{cwd}', '{usr}', '{app}', )    # reversed - latter item overwrites former
-        coll = Collector(app_name=self.app_name)
-        coll.collect('{cwd}/../..', '{cwd}/..', *std_search_paths,
-                     append=('.app_env.cfg', '.sys_env.cfg', '.sys_env' + (self.sys_env_id or 'TEST') + '.cfg',),
+        std_search_paths = ("{cwd}", "{usr}", "{ado}", )    # reversed - latter config file var overwrites former
+        coll = Collector(main_app_name=self.app_name)
+        coll.collect("{cwd}/../..", "{cwd}/..", *std_search_paths,
+                     append=(".app_env.cfg", ".sys_env.cfg", ".sys_env" + (self.sys_env_id or "TEST") + ".cfg",),
                      only_first_of=())
         coll.collect(*std_search_paths,
-                     append=('{app_name}.cfg', '{app_name}.ini'), only_first_of=())
+                     append=("{app_name}.cfg", "{app_name}.ini"), only_first_of=())
         if additional_cfg_files:
             coll.collect(*std_search_paths, select=additional_cfg_files, only_first_of=())
 

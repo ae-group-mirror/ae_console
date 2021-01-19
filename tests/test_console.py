@@ -483,10 +483,10 @@ class TestConfigOptions:
         cae.load_cfg_files()
         assert cae.get_var(var_name) == usr_value                       # usr variable overwrite cwd variable
 
-        app_path = norm_path("{app}")
+        app_path = norm_path("{ado}")
         if not os.path.exists(app_path):
             os.mkdir(app_path)  # will not be removed after test run!
-        app_file, _, app_value = config_fna_vna_vva(file_name='{app}/test' + INI_EXT, var_value='app')
+        app_file, _, app_value = config_fna_vna_vva(file_name='{ado}/test' + INI_EXT, var_value='ado')
         assert app_file != cwd_file and app_file != usr_file
         cae.add_cfg_files()
         cae.load_cfg_files()
@@ -936,9 +936,10 @@ class TestConfigOptions:
         assert not cae.is_main_cfg_file_modified()
 
     def test_is_main_cfg_file_modified(self, config_fna_vna_vva, restore_app_env):
-        file_name, var_name, old_var_val = config_fna_vna_vva(
-            file_name=os.path.join(os.getcwd(), os.path.splitext(os.path.basename(sys.argv[0]))[0] + INI_EXT))
-        cae = ConsoleApp('test_set_var_with_reload')
+        app_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+        file_name, var_name, old_var_val = config_fna_vna_vva(file_name=os.path.join(os.getcwd(), app_name + INI_EXT))
+
+        cae = ConsoleApp('test_set_var_with_reload', app_name=app_name)
         time.sleep(.963)    # needed because Python is too quick, especially on github-ci (fails sometimes with 0.639)
         new_var_val = 'NEW_test_value'
         assert not cae.set_var(var_name, new_var_val)
