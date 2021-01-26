@@ -241,16 +241,16 @@ from configparser import ConfigParser, ExtendedInterpolation, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 from ae.base import DATE_TIME_ISO, DATE_ISO, env_str, sys_env_text      # type: ignore
-from ae.paths import norm_path, Collector                               # type: ignore
+from ae.paths import norm_path, Collector, PATH_PLACEHOLDERS            # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
-    DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVELS,
+    DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS,
     main_app_instance, ori_std_out, _logger,
     AppBase)
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.41'
+__version__ = '0.1.42'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
@@ -665,21 +665,19 @@ class ConsoleApp(AppBase):
                 self.log_file_check()
 
         # finished argument parsing - now print chosen option values to the console
+        self.startup_end = datetime.datetime.now()
+        self.po(f"####  {self.app_name}  V {self.app_version}  args parsed at {self.startup_end}  ####", logger=_logger)
+
         self.debug_level = self.cfg_options['debug_level'].value
         if self.debug_level >= DEBUG_LEVEL_ENABLED:
-            self.po("  ##  Debug Level(" + ", ".join([str(k) + "=" + v for k, v in DEBUG_LEVELS.items()]) + "):",
-                    self.debug_level, logger=_logger)
-            # print sys env - s.a. pyinstaller docs (http://pythonhosted.org/PyInstaller/runtime-information.html)
-            if self.sys_env_id or not is_main_app:
-                self.po(" ###  Initialized ConsoleApp instance for system env id", self.sys_env_id, logger=_logger)
-            self.po("  ##  System Environment:", logger=_logger)
-            self.po(sys_env_text(extra_sys_env_dict={'main cfg': self._main_cfg_fnam}), logger=_logger)
-
-        self.startup_end = datetime.datetime.now()
-        self.po(self.app_name, " V", self.app_version, "   args parsed", self.startup_end, logger=_logger)
-        if not is_main_app and not self.sys_env_id:
-            self.dpo("  ##  Warning: Additional ConsoleApp instance with empty system environment ID", logger=_logger)
-        self.dpo(f"####  {self.app_key} startup finished....  ####", logger=_logger)
+            debug_levels = ", ".join([str(k) + "=" + v for k, v in DEBUG_LEVELS.items()])
+            self.po(f"  ##  Debug Level({debug_levels}): {self.debug_level}", logger=_logger)
+            self.po(f" ###  {self.app_key} System Environment:", logger=_logger)
+            extra_env_info = {"main config": self._main_cfg_fnam, "sys env id": self.sys_env_id}
+            if self.debug_level >= DEBUG_LEVEL_VERBOSE:
+                extra_env_info.update(self.cfg_options)
+                extra_env_info.update(PATH_PLACEHOLDERS)
+            self.po(sys_env_text(extra_sys_env_dict=extra_env_info), logger=_logger)
 
     def set_option(self, name: str, value: Any, cfg_fnam: Optional[str] = None, save_to_config: bool = True) -> str:
         """ set or change the value of a config option.
