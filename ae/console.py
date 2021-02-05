@@ -125,9 +125,9 @@ The following examples shows a config file with two config sections containing o
 
     [aeOptions]
     log_file = './logs/your_log_file.log'
+    configVar1 = ['list-element1', ('list-element2-1', 'list-element2-2', ), dict()]
 
     [YourSectionName]
-    configVar1 = ['list-element1', ('list-element2-1', 'list-element2-2', ), dict()]
     configVar2 = {'key1': 'value 1', 'key2': 2222, 'key3': datetime.datetime.now()}
 
 .. _config-main-section:
@@ -250,7 +250,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.42'
+__version__ = '0.1.43'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
@@ -382,7 +382,7 @@ class ConsoleApp(AppBase):
             if warn_msg:
                 self.dpo(f"ConsoleApp.__init__(): config files collection warning: {warn_msg}")
             self._cfg_opt_val_stripper: Optional[Callable] = cfg_opt_val_stripper
-            #: callable to strip or normalize config option choice values
+            """ callable to strip or normalize config option choice values """
 
             self._parsed_arguments: Optional[Namespace] = None
             """ storing returned namespace of ArgumentParser.parse_args() call, used for to retrieve command line args
@@ -457,7 +457,7 @@ class ConsoleApp(AppBase):
         return None if 'py_logging_params' in logging_params else log_file_name
 
     def __del__(self):
-        """ deallocate this app instance by calling :func:`AppBase.shutdown`. """
+        """ deallocate this app instance by calling :func:`ae.core.AppBase.shutdown`. """
         self.shutdown(exit_code=None)
 
     @AppBase.debug_level.setter
@@ -698,10 +698,10 @@ class ConsoleApp(AppBase):
     set_opt = set_option    #: alias of method :meth:`.set_option`
 
     def add_cfg_files(self, *additional_cfg_files: str) -> str:
-        """ extend list of found config files (in :attr:`~ConsoleApp.config_files`).
+        """ extend list of found config files (in :attr:`~ConsoleApp._cfg_files`).
 
         :param additional_cfg_files:    additional/user-defined config file names.
-        :return:                        ""/empty string on success else line-separated list of error message text.
+        :return:                        empty string on success else line-separated list of error message text.
         """
         std_search_paths = ("{cwd}", "{usr}", "{ado}", )    # reversed - latter config file var overwrites former
         coll = Collector(main_app_name=self.app_name)
@@ -827,7 +827,7 @@ class ConsoleApp(AppBase):
         :param cfg_fnam:        file name (def= :attr:`~ConsoleApp._main_cfg_fnam`) to save the new option value to.
         :param section:         name of the config section (def= :data:`MAIN_SECTION_NAME`).
         :param old_name:        old name/option_id that has to be removed (used for to rename config option name/key).
-        :return:                ''/empty string on success else error message text.
+        :return:                empty string on success else error message text.
 
         This method has an alias named :meth:`set_var`.
         """
