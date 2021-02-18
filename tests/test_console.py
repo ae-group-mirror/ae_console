@@ -67,7 +67,7 @@ class TestAeLogging:
                          multi_threading=True, log_file_name=log_file, log_file_size_max=.001)
         try:
             sys.argv = [sys_argv_app_key_restore, ]
-            file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once for to create log file
+            file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once to create log file
             assert file_name_chk == log_file
             for idx in range(MAX_NUM_LOG_FILES + 9):
                 for line_no in range(16):     # full loop is creating 1 kb of log entries (16 * 64 bytes)
@@ -111,7 +111,7 @@ class TestAeLogging:
         cae = ConsoleApp('test_log_file_flush', log_file_name=log_file)
         try:
             sys.argv = [sys_argv_app_key_restore, ]
-            file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once for to create log file
+            file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once to create log file
             assert file_name_chk == log_file
             assert os.path.exists(log_file)
         finally:
@@ -304,7 +304,7 @@ class TestPythonLogging:
         assert caplog.text.endswith(log_text + "\n")
 
         # ConsoleAppEnv dpo
-        sys.argv = ['tl_cdc']  # sys.argv has to be set for to allow get_option('debug_level') calls done by debug_out()
+        sys.argv = ['tl_cdc']  # sys.argv has to be set to allow get_option('debug_level') calls done by debug_out()
         new_log_text = entry_prefix + "5 dpo"
         cae.dpo(new_log_text, minimum_debug_level=DEBUG_LEVEL_DISABLED)
         assert caplog.text.endswith(log_text + "\n")

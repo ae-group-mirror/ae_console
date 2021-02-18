@@ -57,7 +57,7 @@ the :ref:`config options <config-options>` of your application::
     ca.run_app()
 
 After all arguments and config options of your application are defined, you have to call
-the :meth:`~ConsoleApp.run_app` method of the :class:`ConsoleApp` instance for to parse
+the :meth:`~ConsoleApp.run_app` method of the :class:`ConsoleApp` instance to parse
 the command line arguments.
 
 After the commend line argument parsing your application can gather their values with the methods
@@ -77,7 +77,7 @@ config files
 
 You can create and use separate config files for each of your applications, used system environments and data domains.
 A config file consists of config sections, each section provides config variables and config options
-for to parametrize your application at run-time.
+to parametrize your application at run-time.
 
 While the config file names and extensions for data domains can be freely chosen (like any_name.txt), there
 are also some hard-coded file names that are recognized:
@@ -133,7 +133,7 @@ The following examples shows a config file with two config sections containing o
 .. _config-main-section:
 
 The ae modules are using the main config section `aeOptions` (defined by :data:`MAIN_SECTION_NAME`)
-for to store the values of any pre-defined :ref:`config option <config-options>` and
+to store the values of any pre-defined :ref:`config option <config-options>` and
 :ref:`config variables <config-variables>`.
 
 .. _config-variables:
@@ -150,7 +150,7 @@ evaluated with the built-in :func:`eval` function. The value of the evaluated st
 resulting config value of this config variable.
 
 From within your application simply call the :meth:`~ConsoleApp.get_variable` method with the
-name and section names of the config variable for to fetch their config value.
+name and section names of the config variable to fetch their config value.
 
 The default value of a config variable can also be set/changed directly from within your application
 by calling the :meth:`~ConsoleApp.set_variable` method.
@@ -160,7 +160,7 @@ by :mod:`this module <.console>` as well as by :mod:`.core`.
 
 * ``logging_params`` : general logging configuration parameters (py and ae logging)
   - :meth:`documented here <.core.AppBase.init_logging>`.
-* ``py_logging_params`` : configuration parameters for to activate python logging
+* ``py_logging_params`` : configuration parameters to activate python logging
   - `documented in the Python docs
   <https://docs.python.org/3.6/library/logging.config.html#logging.config.dictConfig>`_.
 * ``log_file`` : log file name for ae logging (this is also a config option - set-able as command line arg).
@@ -169,7 +169,7 @@ by :mod:`this module <.console>` as well as by :mod:`.core`.
   The value of a config variable can be overwritten by defining an OS environment variable with a name
   that is equal to the :func:`snake+upper-case converted names <ae.base.env_str>` of the config-section
   and -variable.
-  E.g. declare an OS environment variable with the name `AE_OPTIONS_DEBUG_LEVEL` for to overwrite the value
+  E.g. declare an OS environment variable with the name `AE_OPTIONS_DEBUG_LEVEL` to overwrite the value
   of the :ref:`pre-defined config option/variable <pre-defined-config-options>` `debug_level`.
 
 
@@ -189,12 +189,12 @@ If a command line option is not specified on the command line then :class:`Conso
 for this config option got specified either in a config file or in the call of :meth:`~ConsoleApp.add_option`.
 The order of this default value search is documented :meth:`here <ConsoleApp.get_option>`.
 
-For to query the resulting value of a config option, simply call the :meth:`~ConsoleApp.get_option` method
+To query the resulting value of a config option, simply call the :meth:`~ConsoleApp.get_option` method
 of your :class:`ConsoleApp` instance::
 
     option_value = c.get_option('option_id')
 
-For to read the default value of a config option or variable directly from the available configuration files use the
+To read the default value of a config option or variable directly from the available configuration files use the
 :meth:`~ConsoleApp.get_variable` method instead. The default value of a config option or variable can also be
 set/changed directly from within your application by calling the :meth:`~ConsoleApp.set_variable` method.
 
@@ -240,23 +240,21 @@ from typing import Any, Callable, Dict, Iterable, Optional, Type, Tuple
 from configparser import ConfigParser, ExtendedInterpolation, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
-from ae.base import DATE_TIME_ISO, DATE_ISO, env_str, sys_env_text      # type: ignore
+from ae.base import DATE_TIME_ISO, DATE_ISO, env_str, sys_env_dict, sys_env_text  # type: ignore
 from ae.paths import norm_path, Collector, PATH_PLACEHOLDERS            # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
-    DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_ENABLED, DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS,
-    main_app_instance, ori_std_out, _logger,
-    AppBase)
+    DEBUG_LEVEL_DISABLED, DEBUG_LEVELS, main_app_instance, ori_std_out, _logger, AppBase)
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.43'
+__version__ = '0.1.44'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
 
-# Lock for to prevent errors in config var value changes and reloads/reads
+# Lock to prevent errors in config var value changes and reloads/reads
 config_lock = threading.RLock()
 
 
@@ -304,29 +302,29 @@ class ConsoleApp(AppBase):
                  **logging_params):
         """ initialize a new :class:`ConsoleApp` instance.
 
-        :param app_title:               application title/description for to set the instance attribute
+        :param app_title:               application title/description to set the instance attribute
                                         :attr:`~ae.core.AppBase.app_title`.
 
                                         If not specified then the docstring of your app's main module will
                                         be used (see :ref:`example <app-title>`).
 
-        :param app_name:                application instance name for to set the instance attribute
+        :param app_name:                application instance name to set the instance attribute
                                         :attr:`~ae.core.AppBase.app_name`.
 
                                         If not specified then base name of the main module file name will be used.
 
-        :param app_version:             application version string for to set the instance attribute
+        :param app_version:             application version string to set the instance attribute
                                         :attr:`~ae.core.AppBase.app_version`.
 
                                         If not specified then value of a global variable with the name
                                         `__version__` will be used (if declared in the actual call stack).
 
-        :param sys_env_id:              system environment id for to set the instance attribute
+        :param sys_env_id:              system environment id to set the instance attribute
                                         :attr:`~ae.core.AppBase.sys_env_id`.
 
-                                        This value is also used as file name suffix for to load all
+                                        This value is also used as file name suffix to load all
                                         the system config variables in sys_env<suffix>.cfg. Pass e.g. 'LIVE'
-                                        for to init this ConsoleApp instance with config values from sys_envLIVE.cfg.
+                                        to init this ConsoleApp instance with config values from sys_envLIVE.cfg.
 
                                         The default value of this argument is an empty string.
 
@@ -335,21 +333,21 @@ class ConsoleApp(AppBase):
                                           optionally defined OS environment variable `AE_OPTIONS_SYS_ENV_ID`
                                           will be used as default.
 
-        :param debug_level:             default debug level for to set the instance attribute
+        :param debug_level:             default debug level to set the instance attribute
                                         :attr:`~ae.core.AppBase.debug_level`.
 
                                         The default value of this argument is :data:`~ae.core.DEBUG_LEVEL_DISABLED`.
 
         :param multi_threading:         pass True if instance is used in multi-threading app.
 
-        :param suppress_stdout:         pass True (for wsgi apps) for to prevent any python print outputs to stdout.
+        :param suppress_stdout:         pass True (for wsgi apps) to prevent any python print outputs to stdout.
 
         :param cfg_opt_eval_vars:       dict of additional application specific data values that are used in eval
                                         expressions (e.g. AcuSihotMonitor.ini).
 
         :param additional_cfg_files:    iterable of additional CFG/INI file names (opt. incl. abs/rel. path).
 
-        :param cfg_opt_val_stripper:    callable for to strip/reformat/normalize the option choices values.
+        :param cfg_opt_val_stripper:    callable to strip/reformat/normalize the option choices values.
 
         :param formatter_class:         alternative formatter class passed onto ArgumentParser instantiation.
 
@@ -385,7 +383,7 @@ class ConsoleApp(AppBase):
             """ callable to strip or normalize config option choice values """
 
             self._parsed_arguments: Optional[Namespace] = None
-            """ storing returned namespace of ArgumentParser.parse_args() call, used for to retrieve command line args
+            """ storing returned namespace of ArgumentParser.parse_args() call, used to retrieve command line args
             """
         self.load_cfg_files()
 
@@ -399,7 +397,7 @@ class ConsoleApp(AppBase):
             formatter_class = HelpFormatter
         self._arg_parser: ArgumentParser = ArgumentParser(
             description=self.app_title, epilog=epilog, formatter_class=formatter_class)   #: ArgumentParser instance
-        # changed for to pass mypy checks (current workarounds are use setattr or add type: ignore:
+        # changed to pass mypy checks (current workarounds are use setattr or add type: ignore:
         # self.add_argument = self._arg_parser.add_argument       #: redirect this method to our ArgumentParser instance
         setattr(self, 'add_argument', self._arg_parser.add_argument)
 
@@ -422,10 +420,10 @@ class ConsoleApp(AppBase):
         * :ref:`log_file  <pre-defined-config-options>` :ref:`configuration option <config-options>` specifies
           the name of the used ae log file (will be read after initialisation of this app instance)
         * `logging_params` :ref:`configuration variable <config-variables>` dict with a `py_logging_params` key
-          for to activate python logging
+          to activate python logging
         * `logging_params` :ref:`configuration variable <config-variables>` dict with the ae log file name
           in the key `log_file_name`
-        * `py_logging_params` :ref:`configuration variable <config-variables>` for to use the python logging module
+        * `py_logging_params` :ref:`configuration variable <config-variables>` to use the python logging module
         * `log_file` :ref:`configuration variable <config-variables>` specifying ae log file
         * :paramref:`~_init_logging.logging_params` dict passing the python logging configuration in the
           key `py_logging_params` to this method
@@ -462,7 +460,7 @@ class ConsoleApp(AppBase):
 
     @AppBase.debug_level.setter
     def debug_level(self, debug_level):
-        """ overwriting AppBase setter for to update also the `debug_level` config option. """
+        """ overwriting AppBase setter to update also the `debug_level` config option. """
         # Seems there is no way to set the value without referencing self._debug_level:
         # .. using following statement ..
         #   AppBase.debug_level.fset(self, debug_level)
@@ -539,7 +537,7 @@ class ConsoleApp(AppBase):
             args.append('-' + short_opt)
         args.append('--' + name)
 
-        # determine config value for to use as default for command line arg
+        # determine config value to use as default for command line arg
         option = Literal(literal_or_value=value, name=name)
         cfg_val = self._get_cfg_parser_val(name, default_value=value)
         option.value = cfg_val
@@ -669,15 +667,11 @@ class ConsoleApp(AppBase):
         self.po(f"####  {self.app_name}  V {self.app_version}  args parsed at {self.startup_end}  ####", logger=_logger)
 
         self.debug_level = self.cfg_options['debug_level'].value
-        if self.debug_level >= DEBUG_LEVEL_ENABLED:
+        if self.debug:
             debug_levels = ", ".join([str(k) + "=" + v for k, v in DEBUG_LEVELS.items()])
             self.po(f"  ##  Debug Level({debug_levels}): {self.debug_level}", logger=_logger)
             self.po(f" ###  {self.app_key} System Environment:", logger=_logger)
-            extra_env_info = {"main config": self._main_cfg_fnam, "sys env id": self.sys_env_id}
-            if self.debug_level >= DEBUG_LEVEL_VERBOSE:
-                extra_env_info.update(self.cfg_options)
-                extra_env_info.update(PATH_PLACEHOLDERS)
-            self.po(sys_env_text(extra_sys_env_dict=extra_env_info), logger=_logger)
+            self.po(sys_env_text(extra_sys_env_dict=self.app_env_dict()), logger=_logger)
 
     def set_option(self, name: str, value: Any, cfg_fnam: Optional[str] = None, save_to_config: bool = True) -> str:
         """ set or change the value of a config option.
@@ -826,7 +820,7 @@ class ConsoleApp(AppBase):
                                 :paramref:`~set_variable.name` argument.
         :param cfg_fnam:        file name (def= :attr:`~ConsoleApp._main_cfg_fnam`) to save the new option value to.
         :param section:         name of the config section (def= :data:`MAIN_SECTION_NAME`).
-        :param old_name:        old name/option_id that has to be removed (used for to rename config option name/key).
+        :param old_name:        old name/option_id that has to be removed (used to rename config option name/key).
         :return:                empty string on success else error message text.
 
         This method has an alias named :meth:`set_var`.
@@ -875,3 +869,41 @@ class ConsoleApp(AppBase):
         return err_msg
 
     set_var = set_variable  #: alias of method :meth:`.set_variable`
+
+    def app_env_dict(self) -> Dict[str, Any]:
+        """ collect run-time app environment data and settings.
+
+        :return:                dict with app environment data/settings.
+        """
+        app_env_info: Dict[str, Any] = {"main config": self._main_cfg_fnam, "sys env id": self.sys_env_id}
+        if self.debug:
+            app_data = dict(app_key=self.app_key)
+            if self.verbose:
+                app_data['app_name'] = self.app_name
+                app_data['app_path'] = self.app_path
+                app_data['app_title'] = self.app_title
+                app_data['app_version'] = self.app_version
+            app_env_info["app data"] = app_data
+
+            cfg_data: Dict[str, Any] = dict(_cfg_files=self._cfg_files, cfg_options=self.cfg_options)
+            if self.verbose:
+                cfg_data['cfg_opt_choices'] = self.cfg_opt_choices
+                cfg_data['cfg_opt_eval_vars'] = self.cfg_opt_eval_vars
+                cfg_data['is_main_cfg_file_modified'] = self.is_main_cfg_file_modified()
+            app_env_info["cfg data"] = cfg_data
+
+            log_data = dict(_log_file_name=self._log_file_name)
+            if self.verbose:
+                log_data['_last_log_line_prefix'] = self._last_log_line_prefix
+                log_data['_log_file_index'] = self._log_file_index
+                log_data['_log_file_size_max'] = self._log_file_size_max
+                log_data['_log_with_timestamp'] = self._log_with_timestamp
+                log_data['py_log_params'] = self.py_log_params
+                log_data['suppress_stdout'] = self.suppress_stdout
+            app_env_info["log data"] = log_data
+
+            app_env_info['PATH_PLACEHOLDERS'] = PATH_PLACEHOLDERS
+            if self.verbose:
+                app_env_info["sys env data"] = sys_env_dict()
+
+        return app_env_info
