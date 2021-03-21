@@ -222,25 +222,17 @@ The supported config option values are documented :data:`here <.core.DEBUG_LEVEL
 
 The value of the second pre-defined config option `log_file` specifies the log file path/file_name, which can
 be abbreviated on the command line with the short option -L.
-
-
-console helper functions
-------------------------
-
-The function :func:`instantiate_config_parser` ensures that the :class:`~configparser.ConfigParser` instance
-is correctly configured, e.g. to support case-sensitive config variable names and to use
-:class:`ExtendedInterpolation` for the interpolation argument.
-
 """
 import os
 import datetime
 import threading
 
 from typing import Any, Callable, Dict, Iterable, Optional, Type, Tuple
-from configparser import ConfigParser, ExtendedInterpolation, NoSectionError
+from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
-from ae.base import DATE_TIME_ISO, DATE_ISO, env_str, sys_env_dict, sys_env_text  # type: ignore
+from ae.base import (                                                   # type: ignore
+    DATE_TIME_ISO, DATE_ISO, env_str, instantiate_config_parser, sys_env_dict, sys_env_text)
 from ae.paths import norm_path, Collector, PATH_PLACEHOLDERS            # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
@@ -248,7 +240,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.44'
+__version__ = '0.1.45'
 
 
 INI_EXT: str = '.ini'                           #: INI file extension
@@ -256,18 +248,6 @@ MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config s
 
 # Lock to prevent errors in config var value changes and reloads/reads
 config_lock = threading.RLock()
-
-
-def instantiate_config_parser() -> ConfigParser:
-    """ instantiate and prepare config file parser. """
-    cfg_parser = ConfigParser(interpolation=ExtendedInterpolation())
-    # set optionxform to have case sensitive var names (or use 'lambda option: option')
-    # mypy V 0.740 bug - see mypy issue #5062: adding pragma "type: ignore" breaks PyCharm (showing
-    # .. inspection warning "Non-self attribute could not be type-hinted"), but
-    # .. also cast(Callable[[Arg(str, 'option')], str], str) and # type: ... is not working
-    # .. (because Arg is not available in plain mypy, only in the extra mypy_extensions package)
-    setattr(cfg_parser, 'optionxform', str)
-    return cfg_parser
 
 
 class ConsoleApp(AppBase):
@@ -703,7 +683,7 @@ class ConsoleApp(AppBase):
                      append=(".app_env.cfg", ".sys_env.cfg", ".sys_env" + (self.sys_env_id or "TEST") + ".cfg",),
                      only_first_of=())
         coll.collect(*std_search_paths,
-                     append=("{app_name}.cfg", "{app_name}.ini"), only_first_of=())
+                     append=("{app_name}.cfg", "{app_name}" + INI_EXT), only_first_of=())
         if additional_cfg_files:
             coll.collect(*std_search_paths, select=additional_cfg_files, only_first_of=())
 

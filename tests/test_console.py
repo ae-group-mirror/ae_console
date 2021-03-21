@@ -2,6 +2,7 @@
 import datetime
 import logging
 import os
+import pytest
 import sys
 import threading
 import time
@@ -9,7 +10,6 @@ import time
 from argparse import ArgumentError
 from typing import cast, Any
 
-import pytest
 from conftest import skip_gitlab_ci, delete_files
 
 from ae.base import DATE_ISO, DATE_TIME_ISO
