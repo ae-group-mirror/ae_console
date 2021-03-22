@@ -232,7 +232,7 @@ from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 from ae.base import (                                                   # type: ignore
-    DATE_TIME_ISO, DATE_ISO, env_str, instantiate_config_parser, sys_env_dict, sys_env_text)
+    CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, env_str, instantiate_config_parser, sys_env_dict, sys_env_text)
 from ae.paths import norm_path, Collector, PATH_PLACEHOLDERS            # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
@@ -240,10 +240,9 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.45'
+__version__ = '0.1.46'
 
 
-INI_EXT: str = '.ini'                           #: INI file extension
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
 
 # Lock to prevent errors in config var value changes and reloads/reads
@@ -680,10 +679,12 @@ class ConsoleApp(AppBase):
         std_search_paths = ("{cwd}", "{usr}", "{ado}", )    # reversed - latter config file var overwrites former
         coll = Collector(main_app_name=self.app_name)
         coll.collect("{cwd}/../..", "{cwd}/..", *std_search_paths,
-                     append=(".app_env.cfg", ".sys_env.cfg", ".sys_env" + (self.sys_env_id or "TEST") + ".cfg",),
+                     append=(".app_env" + CFG_EXT,
+                             ".sys_env" + CFG_EXT,
+                             ".sys_env" + (self.sys_env_id or "TEST") + CFG_EXT,),
                      only_first_of=())
         coll.collect(*std_search_paths,
-                     append=("{app_name}.cfg", "{app_name}" + INI_EXT), only_first_of=())
+                     append=("{app_name}" + CFG_EXT, "{app_name}" + INI_EXT), only_first_of=())
         if additional_cfg_files:
             coll.collect(*std_search_paths, select=additional_cfg_files, only_first_of=())
 

@@ -12,7 +12,7 @@ from typing import cast, Any
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import DATE_ISO, DATE_TIME_ISO
+from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO
 from ae.paths import norm_path
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
@@ -22,7 +22,8 @@ from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp
 @pytest.fixture
 def config_fna_vna_vva(request):
     """ prepare config test files """
-    def _setup_and_teardown(file_name='test_config.cfg', var_name='test_config_var', var_value: Any = 'test_value'):
+    def _setup_and_teardown(file_name="test_config" + CFG_EXT, var_name='test_config_var',
+                            var_value: Any = 'test_value'):
         file_name = norm_path(file_name)
         if os.path.sep not in file_name:
             file_name = os.path.join(os.getcwd(), file_name)
