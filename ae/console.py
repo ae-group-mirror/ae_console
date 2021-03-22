@@ -240,7 +240,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.46'
+__version__ = '0.1.47'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section

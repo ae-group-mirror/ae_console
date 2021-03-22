@@ -12,11 +12,11 @@ from typing import cast, Any
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO
+from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT
 from ae.paths import norm_path
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
-from ae.console import INI_EXT, MAIN_SECTION_NAME, ConsoleApp
+from ae.console import MAIN_SECTION_NAME, ConsoleApp
 
 
 @pytest.fixture
