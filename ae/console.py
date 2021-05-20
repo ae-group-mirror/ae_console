@@ -231,8 +231,9 @@ from typing import Any, Callable, Dict, Iterable, Optional, Type, Tuple
 from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
-from ae.base import (                                                   # type: ignore
-    CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, env_str, instantiate_config_parser, sys_env_dict, sys_env_text)
+from ae.base import (  # type: ignore
+    CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, env_str, instantiate_config_parser, os_user_name, sys_env_dict,
+    sys_env_text)
 from ae.paths import norm_path, Collector, PATH_PLACEHOLDERS            # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
@@ -240,13 +241,31 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.47'
+__version__ = '0.1.48'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
 
 # Lock to prevent errors in config var value changes and reloads/reads
 config_lock = threading.RLock()
+
+
+def config_value_string(value: Any) -> str:
+    """ convert passed value to a string for to store them in a config/ini file.
+
+    :param value:               value to convert to ini variable string/literal.
+    :return:                    ini variable literal string.
+
+    .. note::
+        :class:`~ae.literal.Literal` converts the returned string format back into the representing value.
+    """
+    if isinstance(value, datetime.datetime):
+        str_val = value.strftime(DATE_TIME_ISO)
+    elif isinstance(value, datetime.date):
+        str_val = value.strftime(DATE_ISO)
+    else:
+        str_val = repr(value)
+    return str_val.replace('%', '%%')
 
 
 class ConsoleApp(AppBase):
@@ -337,6 +356,9 @@ class ConsoleApp(AppBase):
                                         supported kwargs are all the method kwargs of
                                         :meth:`~.core.AppBase.init_logging`.
         """
+        self.registered_users: Dict[str, Dict[str, Any]] = dict()
+        self.user_id = ''
+        self.user_specific_cfg_vars: Tuple[Tuple[str, str], ...] = ()
         if not sys_env_id:
             sys_env_id = env_str(MAIN_SECTION_NAME + '_sys_env_id', convert_name=True) or ''
 
@@ -351,7 +373,7 @@ class ConsoleApp(AppBase):
 
             # prepare config files, including default config file (last existing INI/CFG file) for
             # to write to. If there is no INI file at all then create on demand a <app_name>.INI file in the cwd.
-            # Note: the main INI file default file path will possibly be overwritten by load_cfg_files.
+            # Note: the main INI file default file path will possibly be overwritten by :meth:`.load_cfg_files`.
             self._cfg_files: list = list()                                  #: list of all found INI/CFG files
             self._main_cfg_fnam: str = os.path.join(os.getcwd(), self.app_name + INI_EXT)  #: def main config file name
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
@@ -518,7 +540,7 @@ class ConsoleApp(AppBase):
 
         # determine config value to use as default for command line arg
         option = Literal(literal_or_value=value, name=name)
-        cfg_val = self._get_cfg_parser_val(name, default_value=value)
+        cfg_val = self._get_cfg_parser_val(name, MAIN_SECTION_NAME, default_value=value)
         option.value = cfg_val
         kwargs = dict(help=desc, default=cfg_val, type=option.convert_value, choices=choices, metavar=name)
         if multiple:
@@ -605,6 +627,8 @@ class ConsoleApp(AppBase):
         """ prepare app run. call after definition of command line arguments/options and before run of app code. """
         if not self._parsed_arguments:
             self.parse_arguments()
+        if not self.user_id:
+            self.load_user_cfg()
 
     def show_help(self):
         """ show help message on console output/stream.
@@ -707,22 +731,23 @@ class ConsoleApp(AppBase):
             self.dpo(f"ConsoleApp.cfg_section_variable_names: ignoring missing config file section {section}")
             return tuple()
 
-    def _get_cfg_parser_val(self, name: str, section: Optional[str] = None, default_value: Optional[Any] = None,
+    def _get_cfg_parser_val(self, name: str, section: str,
+                            default_value: Optional[Any] = None,
                             cfg_parser: Optional[ConfigParser] = None) -> Any:
         """ determine thread-safe the value of a config variable from the config file.
 
         :param name:            name/option_id of the config variable.
-        :param section:         name of the config section (def= :data:`MAIN_SECTION_NAME` also if passed as None/'')
+        :param section:         name of the config section.
         :param default_value:   default value to return if config value is not specified in any config file.
         :param cfg_parser:      ConfigParser instance to use (def=self._cfg_parser).
         """
         with config_lock:
             cfg_parser = cfg_parser or self._cfg_parser
-            val = cfg_parser.get(section or MAIN_SECTION_NAME, name, fallback=default_value)
+            val = cfg_parser.get(section, name, fallback=default_value)
         return val
 
     def load_cfg_files(self, config_modified: bool = True):
-        """  load and parse all config files.
+        """  (re)load and parse all config files.
 
         :param config_modified:     pass False to prevent the refresh/overwrite the initial config file modified date.
         """
@@ -752,7 +777,8 @@ class ConsoleApp(AppBase):
 
         :param name:            id/name of a :ref:`config option <config-options>` or the name of a existing/declared
                                 :ref:`config variable <config-variables>`.
-        :param section:         name of the :ref:`config section <config-sections>` (def= :data:`MAIN_SECTION_NAME`).
+        :param section:         name of the :ref:`config section <config-sections>`. defaulting to the app options
+                                section (:data:`MAIN_SECTION_NAME`) if not specified or if None or empty string passed.
         :param default_value:   default value to return if config value is not specified in any config file.
         :param cfg_parser:      optional ConfigParser instance to use (def= :attr:`~ConsoleApp._cfg_parser`).
         :param value_type:      optional type of the config value. Only used for :ref:`config-variables` and
@@ -772,14 +798,15 @@ class ConsoleApp(AppBase):
 
         This method has an alias named :meth:`get_var`.
         """
-        val = env_str((section or MAIN_SECTION_NAME) + '_' + name, convert_name=True)
+        section = section or MAIN_SECTION_NAME
+        val = env_str(section + '_' + name, convert_name=True)
         if val is None:
-            if name in self.cfg_options and section in (MAIN_SECTION_NAME, '', None):
+            if name in self.cfg_options and section == MAIN_SECTION_NAME:
                 val = self.cfg_options[name].value
             else:
                 lit = Literal(literal_or_value=default_value, value_type=value_type, name=name)  # used for convert/eval
-                lit.value = self._get_cfg_parser_val(name, section=section, default_value=lit.value,
-                                                     cfg_parser=cfg_parser)
+                lit.value = self._get_cfg_parser_val(name, section=self.user_section(section, name),
+                                                     default_value=lit.value, cfg_parser=cfg_parser)
                 val = lit.value
         return val
 
@@ -800,20 +827,19 @@ class ConsoleApp(AppBase):
         :param value:           value to assign to the config value, specified by the
                                 :paramref:`~set_variable.name` argument.
         :param cfg_fnam:        file name (def= :attr:`~ConsoleApp._main_cfg_fnam`) to save the new option value to.
-        :param section:         name of the config section (def= :data:`MAIN_SECTION_NAME`).
+        :param section:         name of the :ref:`config section <config-sections>`. defaulting to the app options
+                                section (:data:`MAIN_SECTION_NAME`) if not specified or if None or empty string passed.
         :param old_name:        old name/option_id that has to be removed (used to rename config option name/key).
         :return:                empty string on success else error message text.
 
         This method has an alias named :meth:`set_var`.
         """
         msg = f"****  ConsoleApp.set_var({name!r}, {value!r}) "
-        if not cfg_fnam:
-            cfg_fnam = self._main_cfg_fnam
-        if not section:
-            section = MAIN_SECTION_NAME
-
-        if name in self.cfg_options and section in (MAIN_SECTION_NAME, '', None):
+        cfg_fnam = cfg_fnam or self._main_cfg_fnam
+        section = section or MAIN_SECTION_NAME
+        if name in self.cfg_options and section == MAIN_SECTION_NAME:
             self._change_option(name, value)
+        section = self.user_section(section, name)
 
         if not cfg_fnam or not os.path.isfile(cfg_fnam):
             return msg + f"INI/CFG file {cfg_fnam} not found." \
@@ -824,17 +850,10 @@ class ConsoleApp(AppBase):
             try:
                 cfg_parser = instantiate_config_parser()
                 cfg_parser.read(cfg_fnam)
-                if isinstance(value, datetime.datetime):
-                    str_val = value.strftime(DATE_TIME_ISO)
-                elif isinstance(value, datetime.date):
-                    str_val = value.strftime(DATE_ISO)
-                else:
-                    str_val = repr(value)
-                str_val = str_val.replace('%', '%%')
 
                 if not cfg_parser.has_section(section):
                     cfg_parser.add_section(section)
-                cfg_parser.set(section, name, str_val)
+                cfg_parser.set(section, name, config_value_string(value))
                 if old_name:
                     cfg_parser.remove_option(section, old_name)
                 with open(cfg_fnam, 'w') as configfile:
@@ -843,6 +862,7 @@ class ConsoleApp(AppBase):
                 # refresh self._config_parser cache in case the written var is in one of our already loaded config files
                 # .. while keeping the initial modified date untouched
                 self.load_cfg_files(config_modified=False)
+                self.load_user_cfg()  # reload in case a user config variable got changed
 
             except Exception as ex:
                 err_msg = msg + f"exception: {ex}"
@@ -850,6 +870,62 @@ class ConsoleApp(AppBase):
         return err_msg
 
     set_var = set_variable  #: alias of method :meth:`.set_variable`
+
+    def load_user_cfg(self):
+        """ load users configuration. """
+        with config_lock:
+            if not self.user_id:
+                usr_id = self.cfg_options.get('user_id')
+                if usr_id:
+                    usr_id = usr_id.value
+                else:
+                    usr_id = self._get_cfg_parser_val('user_id', MAIN_SECTION_NAME, default_value=os_user_name())
+                self.user_id = usr_id
+
+            reg_users = self.get_var('registered_users', default_value=dict())
+            if reg_users:
+                self.registered_users = reg_users
+
+            usr_data = reg_users.get(self.user_id, dict())
+            self.user_specific_cfg_vars = usr_data.get('user_specific_cfg_vars',
+                                                       self.get_var('user_specific_cfg_vars', default_value=()))
+
+    def register_user(self, user_id: str, **user_data):
+        """ register user and copy the user specific config var values from the current user.
+
+        :param user_id:         id of the user to register.
+        :param user_data:       user data dict.
+
+        .. note::
+            this method will overwrite an existing user with the same user id, with the passed user data and the config
+            variable values of the current/default user.
+        """
+        if user_id in self.registered_users:
+            self.po(f"ConsoleApp.register_user overwriting registered user {user_id}={self.registered_users[user_id]}")
+
+        with config_lock:
+            if 'user_name' not in user_data:
+                user_data['user_name'] = user_id
+            self.registered_users[user_id] = user_data
+            self.set_var('registered_users', self.registered_users)
+
+            current_user_id = self.user_id
+            for section, name in self.user_specific_cfg_vars:
+                value = self.get_var(name, section)
+                self.user_id = user_id
+                self.set_var(name, value, section=section)
+                self.user_id = current_user_id
+
+    def user_section(self, section: str, name: str) -> str:
+        """ return the user section name if the passed (section, name) setting id is user-specific.
+
+        :param section:         section name.
+        :param name:            variable name.
+        :return:                passed section name or user-specific section name.
+        """
+        if self.user_id in self.registered_users and (section, name) in self.user_specific_cfg_vars:
+            section = section + '_usr_id_' + self.user_id
+        return section
 
     def app_env_dict(self) -> Dict[str, Any]:
         """ collect run-time app environment data and settings.

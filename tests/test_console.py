@@ -12,23 +12,23 @@ from typing import cast, Any
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT
+from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, os_user_name
 from ae.paths import norm_path
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
-from ae.console import MAIN_SECTION_NAME, ConsoleApp
+from ae.console import MAIN_SECTION_NAME, ConsoleApp, config_value_string
 
 
 @pytest.fixture
 def config_fna_vna_vva(request):
     """ prepare config test files """
     def _setup_and_teardown(file_name="test_config" + CFG_EXT, var_name='test_config_var',
-                            var_value: Any = 'test_value'):
+                            var_value: Any = 'test_value', additional_line: str = ""):
         file_name = norm_path(file_name)
         if os.path.sep not in file_name:
             file_name = os.path.join(os.getcwd(), file_name)
         with open(file_name, 'w') as f:
-            f.write(f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}")
+            f.write(f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}\n{additional_line}")
 
         def _tear_down():               # using yield instead of finalizer does not execute the teardown part
             if os.path.exists(file_name):       # some tests are deleting the config file explicitly
@@ -38,6 +38,23 @@ def config_fna_vna_vva(request):
         return file_name, var_name, var_value
 
     return _setup_and_teardown
+
+
+class TestHelpers:
+    def test_config_value_string(self):
+        assert config_value_string(369) == "369"
+        assert config_value_string(369.3) == "369.3"
+        assert config_value_string('string') == "'string'"
+        assert config_value_string(dict()) == "{}"
+        assert config_value_string(dict(a=1)) == "{'a': 1}"
+        assert config_value_string(list()) == "[]"
+        assert config_value_string(list('b')) == "['b']"
+        assert config_value_string(tuple()) == "()"
+        assert config_value_string(tuple((3, 'a', 2.1))) == "(3, 'a', 2.1)"
+        value = datetime.date(2020, 11, 3)
+        assert config_value_string(value) == value.strftime(DATE_ISO)
+        value = datetime.datetime(2020, 11, 3)
+        assert config_value_string(value) == value.strftime(DATE_TIME_ISO)
 
 
 class TestAeLogging:
@@ -973,3 +990,174 @@ class TestConfigOptions:
 
     def test_app_instances_reset2(self):
         assert main_app_instance() is None
+
+
+class TestUser:
+    def test_load_user_cfg_user_id_from_os(self, restore_app_env, config_fna_vna_vva):
+        _file_name, _var_name, _old_var_val = config_fna_vna_vva()
+        cae = ConsoleApp()
+
+        assert cae.user_id == ''
+        cae.load_user_cfg()
+        assert cae.user_id == os_user_name()
+
+    def test_load_user_cfg_user_id_from_os_after_run_app(self, restore_app_env, config_fna_vna_vva,
+                                                         sys_argv_app_key_restore):
+        _file_name, _var_name, _old_var_val = config_fna_vna_vva()
+        cae = ConsoleApp()
+
+        assert cae.user_id == ''
+        cae.run_app()
+        assert cae.user_id == os_user_name()
+
+    def test_load_user_cfg_user_id_from_cfg_var(self, restore_app_env, config_fna_vna_vva):
+        file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_id')
+        cae = ConsoleApp(additional_cfg_files=(file_name, ))
+
+        cae.load_user_cfg()
+        assert cae.user_id == var_val
+
+    def test_load_user_cfg_user_id_from_cfg_opt_default(self, restore_app_env):
+        def_val = "option_default_value"
+        cae = ConsoleApp()
+        cae.add_option('user_id', "user id test", def_val)
+
+        cae.load_user_cfg()
+        assert cae.user_id == def_val
+
+    def test_load_user_cfg_user_id_from_cfg_opt_preference(self, restore_app_env, config_fna_vna_vva,
+                                                           sys_argv_app_key_restore):
+        file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_id')
+        def_val = "option_default_value"
+        opt_val = "option_value"
+        assert var_val != def_val != opt_val
+        cae = ConsoleApp(additional_cfg_files=(file_name, ))
+        sys.argv = ['test', f"--user_id={opt_val}"]
+        cae.add_option('user_id', "user id test", def_val)
+
+        assert cae.get_opt('user_id') == opt_val    # or call cae.run_app() instead of get_opt() to parse args/options
+        cae.load_user_cfg()                         # .. and cae.load_user_cfg() to reload user id (see next test)
+        assert cae.user_id == opt_val
+
+    def test_load_user_cfg_user_id_from_cfg_opt_preference_with_run_app(self, restore_app_env, config_fna_vna_vva,
+                                                                        sys_argv_app_key_restore):
+        file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_id')
+        def_val = "option_default_value"
+        opt_val = "option_value"
+        assert var_val != def_val != opt_val
+        cae = ConsoleApp(additional_cfg_files=(file_name, ))
+        sys.argv = ['test', f"--user_id={opt_val}"]
+        cae.add_option('user_id', "user id test", def_val)
+
+        cae.run_app()
+        assert cae.user_id == opt_val
+
+    def test_load_user_cfg_registered_users_not_configured(self, restore_app_env):
+        cae = ConsoleApp()
+        assert not cae.registered_users
+        assert isinstance(cae.registered_users, dict)
+
+        cae.load_user_cfg()
+        assert not cae.registered_users
+        assert isinstance(cae.registered_users, dict)
+
+    def test_load_user_cfg_registered_users_from_cfg(self, restore_app_env, config_fna_vna_vva):
+        usr_id, usr_name = 'usr_id', 'usr_name'
+        reg_users = {usr_id: dict(user_name=usr_name)}
+        file_name, _var_name, var_val = config_fna_vna_vva(var_name='registered_users', var_value=repr(reg_users))
+        cae = ConsoleApp(additional_cfg_files=(file_name, ))
+
+        cae.load_user_cfg()
+        assert cae.registered_users == reg_users
+
+    def test_load_user_cfg_user_specific_cfg_vars_not_configured(self, restore_app_env):
+        cae = ConsoleApp()
+        assert not cae.user_specific_cfg_vars
+        assert isinstance(cae.user_specific_cfg_vars, tuple)
+
+        cae.load_user_cfg()
+        assert not cae.user_specific_cfg_vars
+        assert isinstance(cae.user_specific_cfg_vars, tuple)
+
+    def test_load_user_cfg_user_specific_cfg_vars_users_from_cfg(self, restore_app_env, config_fna_vna_vva):
+        usr_vars = ((MAIN_SECTION_NAME, 'tst_var'), )
+        file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(usr_vars),
+                                                           additional_line=f"registered_users = {dict(usr=dict())!r}")
+        cae = ConsoleApp(additional_cfg_files=(file_name, ))
+
+        cae.load_user_cfg()
+        assert cae.user_specific_cfg_vars == usr_vars
+
+    def test_load_user_cfg_user_specific_cfg_vars_users_from_user_data(self, restore_app_env, config_fna_vna_vva):
+        def_vars = ((MAIN_SECTION_NAME, 'tst_var1'), )
+        usr_vars = ((MAIN_SECTION_NAME, 'tst_var2'), )
+        usr_id = 'usr_id'
+        reg_users = {usr_id: dict(user_specific_cfg_vars=usr_vars)}
+        file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(def_vars),
+                                                           additional_line=f"registered_users = {reg_users!r}")
+        cae = ConsoleApp(additional_cfg_files=(file_name, ))
+
+        cae.load_user_cfg()
+        assert cae.user_specific_cfg_vars == def_vars
+
+        cae.user_id = usr_id
+        cae.load_user_cfg()
+        assert cae.user_specific_cfg_vars == usr_vars
+
+    def test_register_user(self, restore_app_env, config_fna_vna_vva):
+        usr_var_name = 'tst_usr_var'
+        usr_var_val = 'tst_usr_var_val'
+        usr_vars = ((MAIN_SECTION_NAME, usr_var_name), )
+        file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(usr_vars),
+                                                           additional_line=f"{usr_var_name} = {usr_var_val!r}")
+        cae = ConsoleApp()
+        cae._main_cfg_fnam = file_name
+        cae._cfg_files.append(file_name)
+        cae.load_cfg_files()
+        cae.load_user_cfg()
+
+        def_usr_id = cae.user_id
+        usr_id = 'new_usr_id'
+        aud = 'additional_usr_data'
+
+        assert not cae.registered_users
+
+        cae.register_user(usr_id, additional_user_data=aud)
+
+        assert len(cae.registered_users) == 1
+        assert usr_id in cae.registered_users
+        assert isinstance(cae.registered_users[usr_id], dict)
+        assert cae.registered_users[usr_id]['additional_user_data'] == aud
+        assert cae.registered_users[usr_id]['user_name'] == usr_id
+
+        assert cae.user_id == def_usr_id
+        assert cae.get_var(usr_var_name) == usr_var_val
+
+        cae.user_id = usr_id
+        assert cae.get_var(usr_var_name) == usr_var_val
+
+        new_usr_var_val = 'new_usr_var_val'
+        cae.set_var(usr_var_name, new_usr_var_val, cfg_fnam=file_name)
+        assert cae.get_var(usr_var_name) == new_usr_var_val
+
+        cae.user_id = def_usr_id
+        assert cae.get_var(usr_var_name) == usr_var_val
+
+        usr_name = 'usr_nam'
+        cae.register_user(usr_id, user_name=usr_name)   # test duplicate user registration
+        assert len(cae.registered_users) == 1
+        assert usr_id in cae.registered_users
+        assert isinstance(cae.registered_users[usr_id], dict)
+        assert 'additional_user_data' not in cae.registered_users[usr_id]
+        assert cae.registered_users[usr_id]['user_name'] == usr_name
+
+    def test_user_section(self, restore_app_env):
+        usr_id = 'usr_tst_id'
+        cae = ConsoleApp()
+        cae.user_id = usr_id
+        cae.registered_users = {usr_id: dict()}
+        cae.user_specific_cfg_vars = (('section', 'var_nam'), )
+
+        assert cae.user_section('xxx', 'var_nam') == 'xxx'
+        assert cae.user_section('section', 'yyy_var_nam') == 'section'
+        assert cae.user_section('section', 'var_nam') == 'section' + '_usr_id_' + usr_id
