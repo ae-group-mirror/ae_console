@@ -2,6 +2,8 @@
 import datetime
 import logging
 import os
+from unittest.mock import patch
+
 import pytest
 import sys
 import threading
@@ -82,7 +84,8 @@ class TestAeLogging:
     def test_cae_log_file_rotation(self, restore_app_env, sys_argv_app_key_restore):
         log_file = 'test_cae_rot_log.log'
         cae = ConsoleApp('test_cae_log_file_rotation',
-                         multi_threading=True, log_file_name=log_file, log_file_size_max=.001)
+                         multi_threading=True, log_file_name=log_file, log_file_size_max=.001,
+                         debug_level=DEBUG_LEVEL_VERBOSE)
         try:
             sys.argv = [sys_argv_app_key_restore, ]
             file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once to create log file
@@ -996,24 +999,20 @@ class TestUser:
     def test_load_user_cfg_user_id_from_os(self, restore_app_env, config_fna_vna_vva):
         _file_name, _var_name, _old_var_val = config_fna_vna_vva()
         cae = ConsoleApp()
-
-        assert cae.user_id == ''
-        cae.load_user_cfg()
         assert cae.user_id == os_user_name()
 
-    def test_load_user_cfg_user_id_from_os_after_run_app(self, restore_app_env, config_fna_vna_vva,
-                                                         sys_argv_app_key_restore):
-        _file_name, _var_name, _old_var_val = config_fna_vna_vva()
-        cae = ConsoleApp()
-
-        assert cae.user_id == ''
-        cae.run_app()
-        assert cae.user_id == os_user_name()
+        changed_user = 'chg_usr'
+        cae.user_id = ''
+        with patch('ae.console.os_user_name', lambda: changed_user):
+            cae.load_user_cfg()
+        assert cae.user_id == changed_user
 
     def test_load_user_cfg_user_id_from_cfg_var(self, restore_app_env, config_fna_vna_vva):
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_id')
         cae = ConsoleApp(additional_cfg_files=(file_name, ))
+        assert cae.user_id == var_val
 
+        cae.user_id = ''
         cae.load_user_cfg()
         assert cae.user_id == var_val
 
@@ -1021,6 +1020,8 @@ class TestUser:
         def_val = "option_default_value"
         cae = ConsoleApp()
         cae.add_option('user_id', "user id test", def_val)
+        cae.parse_arguments()
+        assert cae.user_id == def_val
 
         cae.load_user_cfg()
         assert cae.user_id == def_val
@@ -1031,11 +1032,14 @@ class TestUser:
         def_val = "option_default_value"
         opt_val = "option_value"
         assert var_val != def_val != opt_val
-        cae = ConsoleApp(additional_cfg_files=(file_name, ))
         sys.argv = ['test', f"--user_id={opt_val}"]
+        cae = ConsoleApp(additional_cfg_files=(file_name, ))
         cae.add_option('user_id', "user id test", def_val)
-
         assert cae.get_opt('user_id') == opt_val    # or call cae.run_app() instead of get_opt() to parse args/options
+
+        assert cae.user_id == opt_val
+
+        cae.user_id = ''
         cae.load_user_cfg()                         # .. and cae.load_user_cfg() to reload user id (see next test)
         assert cae.user_id == opt_val
 
@@ -1072,15 +1076,15 @@ class TestUser:
 
     def test_load_user_cfg_user_specific_cfg_vars_not_configured(self, restore_app_env):
         cae = ConsoleApp()
-        assert not cae.user_specific_cfg_vars
-        assert isinstance(cae.user_specific_cfg_vars, tuple)
+        assert cae.user_specific_cfg_vars
+        assert isinstance(cae.user_specific_cfg_vars, set)
 
         cae.load_user_cfg()
-        assert not cae.user_specific_cfg_vars
-        assert isinstance(cae.user_specific_cfg_vars, tuple)
+        assert cae.user_specific_cfg_vars
+        assert isinstance(cae.user_specific_cfg_vars, set)
 
     def test_load_user_cfg_user_specific_cfg_vars_users_from_cfg(self, restore_app_env, config_fna_vna_vva):
-        usr_vars = ((MAIN_SECTION_NAME, 'tst_var'), )
+        usr_vars = {(MAIN_SECTION_NAME, 'tst_var')}
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(usr_vars),
                                                            additional_line=f"registered_users = {dict(usr=dict())!r}")
         cae = ConsoleApp(additional_cfg_files=(file_name, ))
@@ -1089,8 +1093,8 @@ class TestUser:
         assert cae.user_specific_cfg_vars == usr_vars
 
     def test_load_user_cfg_user_specific_cfg_vars_users_from_user_data(self, restore_app_env, config_fna_vna_vva):
-        def_vars = ((MAIN_SECTION_NAME, 'tst_var1'), )
-        usr_vars = ((MAIN_SECTION_NAME, 'tst_var2'), )
+        def_vars = {(MAIN_SECTION_NAME, 'tst_var1')}
+        usr_vars = {(MAIN_SECTION_NAME, 'tst_var2')}
         usr_id = 'usr_id'
         reg_users = {usr_id: dict(user_specific_cfg_vars=usr_vars)}
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(def_vars),
@@ -1107,7 +1111,7 @@ class TestUser:
     def test_register_user(self, restore_app_env, config_fna_vna_vva):
         usr_var_name = 'tst_usr_var'
         usr_var_val = 'tst_usr_var_val'
-        usr_vars = ((MAIN_SECTION_NAME, usr_var_name), )
+        usr_vars = {(MAIN_SECTION_NAME, usr_var_name)}
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(usr_vars),
                                                            additional_line=f"{usr_var_name} = {usr_var_val!r}")
         cae = ConsoleApp()
@@ -1116,47 +1120,65 @@ class TestUser:
         cae.load_cfg_files()
         cae.load_user_cfg()
 
-        def_usr_id = cae.user_id
-        usr_id = 'new_usr_id'
+        os_usr_id = cae.user_id
+        new_usr_id = 'new_usr_id'
         aud = 'additional_usr_data'
 
         assert not cae.registered_users
 
-        cae.register_user(usr_id, additional_user_data=aud)
+        assert cae.user_id == os_usr_id
+        cae.user_id = new_usr_id
+        assert cae.get_var(usr_var_name) == usr_var_val
+        cae.user_id = os_usr_id
+        assert cae.get_var(usr_var_name) == usr_var_val
+
+        cae.register_user(additional_user_data=aud)
 
         assert len(cae.registered_users) == 1
-        assert usr_id in cae.registered_users
-        assert isinstance(cae.registered_users[usr_id], dict)
-        assert cae.registered_users[usr_id]['additional_user_data'] == aud
-        assert cae.registered_users[usr_id]['user_name'] == usr_id
+        assert os_usr_id in cae.registered_users
+        assert isinstance(cae.registered_users[os_usr_id], dict)
+        assert cae.registered_users[os_usr_id]['additional_user_data'] == aud
+        assert cae.registered_users[os_usr_id]['user_name'] == os_usr_id
 
-        assert cae.user_id == def_usr_id
+        assert cae.user_id == os_usr_id
+        cae.user_id = new_usr_id
+        assert cae.get_var(usr_var_name) == usr_var_val
+        cae.user_id = os_usr_id
         assert cae.get_var(usr_var_name) == usr_var_val
 
-        cae.user_id = usr_id
+        os_usr_chg_val = 'os_usr_chg_val'
+        cae.set_var(usr_var_name, os_usr_chg_val, cfg_fnam=file_name)
+
+        cae.user_id = new_usr_id
         assert cae.get_var(usr_var_name) == usr_var_val
+        cae.user_id = os_usr_id
+        assert cae.get_var(usr_var_name) == os_usr_chg_val
 
-        new_usr_var_val = 'new_usr_var_val'
-        cae.set_var(usr_var_name, new_usr_var_val, cfg_fnam=file_name)
-        assert cae.get_var(usr_var_name) == new_usr_var_val
-
-        cae.user_id = def_usr_id
-        assert cae.get_var(usr_var_name) == usr_var_val
-
+        # test overwriting user data via re-registration
         usr_name = 'usr_nam'
-        cae.register_user(usr_id, user_name=usr_name)   # test duplicate user registration
+        cae.register_user(user_name=usr_name)
         assert len(cae.registered_users) == 1
-        assert usr_id in cae.registered_users
-        assert isinstance(cae.registered_users[usr_id], dict)
-        assert 'additional_user_data' not in cae.registered_users[usr_id]
-        assert cae.registered_users[usr_id]['user_name'] == usr_name
+        assert os_usr_id in cae.registered_users
+        assert isinstance(cae.registered_users[os_usr_id], dict)
+        assert 'additional_user_data' in cae.registered_users[os_usr_id]
+        assert cae.registered_users[os_usr_id]['user_name'] == usr_name
+
+        # test creation of new user with same/duplicate user name
+        cae.user_id = new_usr_id
+        cae.register_user(user_name=usr_name)
+        assert len(cae.registered_users) == 2
+        assert new_usr_id in cae.registered_users
+        assert isinstance(cae.registered_users[new_usr_id], dict)
+        assert 'additional_user_data' not in cae.registered_users[new_usr_id]
+        assert cae.registered_users[os_usr_id]['user_name'] == usr_name
+        assert cae.registered_users[new_usr_id]['user_name'] == usr_name
 
     def test_user_section(self, restore_app_env):
         usr_id = 'usr_tst_id'
         cae = ConsoleApp()
         cae.user_id = usr_id
         cae.registered_users = {usr_id: dict()}
-        cae.user_specific_cfg_vars = (('section', 'var_nam'), )
+        cae.user_specific_cfg_vars = {('section', 'var_nam')}
 
         assert cae.user_section('xxx', 'var_nam') == 'xxx'
         assert cae.user_section('section', 'yyy_var_nam') == 'section'
