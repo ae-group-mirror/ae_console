@@ -21,7 +21,7 @@ finally call the :meth:`~ConsoleApp.run_app` method to parse the command line ar
     ...
     ca.run_app()
 
-the values of the commend line arguments are provided by the methods :meth:`~ConsoleApp.get_argument` and
+the values of the commend line arguments can be determined by calling the methods :meth:`~ConsoleApp.get_argument` and
 :meth:`~ConsoleApp.get_option` of the :class:`ConsoleApp` app instance. additional configuration values, persistently
 stored in :ref:`INI/CFG files <config-files>`, are provided by the :meth:`~ConsoleApp.get_variable` method.
 
@@ -65,9 +65,8 @@ application at run-time.
 config files
 ^^^^^^^^^^^^
 
-
-configuration files get shared between apps or used exclusively by one app. file names and extensions can be freely
-chosen, apart from the hard-coded config files, shown in the following table:
+configuration files can be shared between apps or used exclusively by one app. the following file names are recognized
+and loaded automatically on app initialization:
 
 +----------------------------+---------------------------------------------------+
 |  config file               |  used for .... config variables and options       |
@@ -85,11 +84,16 @@ chosen, apart from the hard-coded config files, shown in the following table:
 | .sys_env<SYS_ENV_ID>.cfg   |  the system with SYS_ID (read-only)               |
 +----------------------------+---------------------------------------------------+
 
-the above is ordered by the preference in determining the value of a config variable. so app/domain specific config
-variables/options will always precede/overwrite any application and system specific config values. additionally, only
-they can have any file extension and can be placed into any accessible folder, whereas non-domain-specific config files
-have to have the `.ini` or `.cfg` file extension and get only searched in the current working directory, then in the
-user data directory (see :func:`ae.paths.user_data_path`) and finally in the application installation directory.
+the above table is ordered by the preference to search/get the value of a config variable/option. so the values stored
+in the domain/app specific config file will always precede/overwrite any application and system specific values.
+
+app/domain-specific config files have to be specified explicitly, either on initialization of the :class:`ConsoleApp`
+instance via the kwarg :paramref:`~ConsoleApp.__init__.additional_cfg_file`, or by calling the method
+:meth:`~ConsoleApp.add_cfg_files`. they can have any file extension and can be placed into any accessible folder.
+
+all the other config files have to have the specified name with a `.ini` or `.cfg` file extension, and get recognized in
+the current working directory, in the user data directory (see :func:`ae.paths.user_data_path`) and in the application
+installation directory.
 
 .. _config-sections:
 
@@ -155,9 +159,11 @@ character between the name and the option value, overwrites the value stored in 
 
     $ your_application --log_file='your_new_log_file.log'
 
-the default value of a not specified config option gets searched either in a config file or in the option definition
-call to :meth:`~ConsoleApp.add_option`. the exact search order is documented in the doc-string of the method
-:meth:`~ConsoleApp.get_option`, which determines the value of a config option::
+the default value of a not specified config option gets searched first in the config files (the exact search order is
+documented in the doc-string of the method :meth:`~ConsoleApp.add_cfg_files`), or if not found then the default value
+will be used, that is specified in the definition of the config option (the call of :meth:`~ConsoleApp.add_option`).
+
+the method :meth:`~ConsoleApp.get_option` determines the value of a config option::
 
     my_log_file_name = ca.get_option('log_file')
 
@@ -212,7 +218,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.50'
+__version__ = '0.1.51'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -449,13 +455,53 @@ class ConsoleApp(AppBase):
         if self.get_opt('debug_level') != debug_level:
             self.set_opt('debug_level', debug_level)
 
-    # methods to process config files and command line options
+    # methods to process command line options and config files
 
     def add_cfg_files(self, *additional_cfg_files: str) -> str:
-        """ extend list of found config files (in :attr:`~ConsoleApp._cfg_files`).
+        """ extend list of available and additional config files (in :attr:`~ConsoleApp._cfg_files`).
 
-        :param additional_cfg_files:    additional/user-defined config file names.
+        :param additional_cfg_files:    domain/app-specific config file names to be defined/registered additionally.
         :return:                        empty string on success else line-separated list of error message text.
+
+        Underneath the search order of the config files variable value - the first found one will be returned:
+
+        #. the domain/app-specific :ref:`config files <config-files>` added in your app code by this method. these files
+           will be searched for the config option value in reversed order - so the last added
+           :ref:`config file <config-files>` will be the first one where the config value will be searched.
+        #. :ref:`config files <config-files>` added via :paramref:`~ConsoleApp.additional_cfg_files` argument of
+           :meth:`ConsoleApp.__init__` (searched in the reversed order).
+        #. <app_name>.INI file in the <app_dir>
+        #. <app_name>.CFG file in the <app_dir>
+        #. <app_name>.INI file in the <usr_dir>
+        #. <app_name>.CFG file in the <usr_dir>
+        #. <app_name>.INI file in the <cwd>
+        #. <app_name>.CFG file in the <cwd>
+        #. .sys_env.cfg in the <app_dir>
+        #. .sys_env<sys_env_id>.cfg in the <app_dir>
+        #. .app_env.cfg in the <app_dir>
+        #. .sys_env.cfg in the <usr_dir>
+        #. .sys_env<sys_env_id>.cfg in the <usr_dir>
+        #. .app_env.cfg in the <usr_dir>
+        #. .sys_env.cfg in the <cwd>
+        #. .sys_env<sys_env_id>.cfg in the <cwd>
+        #. .app_env.cfg in the <cwd>
+        #. .sys_env.cfg in the parent folder of the <cwd>
+        #. .sys_env<sys_env_id>.cfg in the parent folder of the <cwd>
+        #. .app_env.cfg in the parent folder of the <cwd>
+        #. .sys_env.cfg in the parent folder of the parent folder of the <cwd>
+        #. .sys_env<sys_env_id>.cfg in the parent folder of the parent folder of the <cwd>
+        #. .app_env.cfg in the parent folder of the parent folder of the <cwd>
+        #. value argument passed into the add_opt() method call (defining the option)
+        #. default_value argument passed into this method (only if :class:`~ConsoleApp.add_option` didn't get called)
+
+        **legend of the placeholders in the above search order lists** (see also :data:`ae.paths.PATH_PLACEHOLDERS`):
+
+        * *<cwd>* is the current working directory of your application (determined with :func:`os.getcwd`)
+        * *<app_name>* is the base app name without extension of your main python code file.
+        * *<app_dir>* is the application data directory (APPDATA/<app_name> in Windows, ~/.config/<app_name> in Linux).
+        * *<usr_dir>* is the user data directory (APPDATA in Windows, ~/.config in Linux).
+        * *<sys_env_id>* is the specified argument of :meth:`ConsoleApp.__init__`.
+
         """
         std_search_paths = ("{cwd}", "{usr}", "{ado}", )    # reversed - latter config file var overwrites former
         coll = Collector(main_app_name=self.app_name)
@@ -713,57 +759,19 @@ class ConsoleApp(AppBase):
             self.debug_level = value
 
     def get_option(self, name: str, default_value: Optional[Any] = None) -> Any:
-        """ get the value of a config option specified by it's name (option id).
+        """ determine the value of a config option specified by it's name (option id).
 
-        The returned value has the same type as the value specified in the :meth:`add_option` call and
-        gets taken either from the command line, the default section (:data:`MAIN_SECTION_NAME`) of any found
-        config variable file (with file extension INI or CFG) or from the default values specified in your python code.
-
-        Underneath you find the order of the value search - the first specified/found value will be returned
-        (implemented in :meth:`.add_cfg_files`):
-
-        #. command line arguments option value
-        #. :ref:`config files <config-files>` added in your app code via the method
-           :meth:`add_cfg_files`. These files will be searched for the config option value in reversed order - so the
-           last added :ref:`config file <config-files>` will be the first one where the config option will be searched.
-        #. :ref:`config files <config-files>` added via :paramref:`~ConsoleApp.additional_cfg_files` argument of
-           :meth:`ConsoleApp.__init__` (searched in the reversed order)
-        #. <app_name>.INI file in the <app_dir>
-        #. <app_name>.CFG file in the <app_dir>
-        #. <app_name>.INI file in the <usr_dir>
-        #. <app_name>.CFG file in the <usr_dir>
-        #. <app_name>.INI file in the <cwd>
-        #. <app_name>.CFG file in the <cwd>
-        #. .sys_env.cfg in the <app_dir>
-        #. .sys_env<sys_env_id>.cfg in the <app_dir>
-        #. .app_env.cfg in the <app_dir>
-        #. .sys_env.cfg in the <usr_dir>
-        #. .sys_env<sys_env_id>.cfg in the <usr_dir>
-        #. .app_env.cfg in the <usr_dir>
-        #. .sys_env.cfg in the <cwd>
-        #. .sys_env<sys_env_id>.cfg in the <cwd>
-        #. .app_env.cfg in the <cwd>
-        #. .sys_env.cfg in the parent folder of the <cwd>
-        #. .sys_env<sys_env_id>.cfg in the parent folder of the <cwd>
-        #. .app_env.cfg in the parent folder of the <cwd>
-        #. .sys_env.cfg in the parent folder of the parent folder of the <cwd>
-        #. .sys_env<sys_env_id>.cfg in the parent folder of the parent folder of the <cwd>
-        #. .app_env.cfg in the parent folder of the parent folder of the <cwd>
-        #. value argument passed into the add_opt() method call (defining the option)
-        #. default_value argument passed into this method (only if :class:`~ConsoleApp.add_option` didn't get called)
-
-        **Placeholders in the above search order lists are** (see also :data:`ae.paths.PATH_PLACEHOLDERS`):
-
-        * *<cwd>* is the current working directory of your application (determined with :func:`os.getcwd`)
-        * *<app_name>* is the base app name without extension of your main python code file.
-        * *<app_dir>* is the application data directory (APPDATA/<app_name> in Windows, ~/.config/<app_name> in Linux).
-        * *<usr_dir>* is the user data directory (APPDATA in Windows, ~/.config in Linux).
-        * *<sys_env_id>* is specified as argument of :meth:`ConsoleApp.__init__`
-
-        :param name:            id of the config option.
+        :param name:            name/id of the config option.
         :param default_value:   default value of the option (if not defined with :class:`~ConsoleApp.add_option`).
-
         :return:                first found value of the option identified by :paramref:`~ConsoleApp.get_option.name`.
+                                The returned value has the same type as the value specified in the :meth:`.add_option`
+                                call. if not given on the command line, then it gets search next in default config
+                                section (:data:`MAIN_SECTION_NAME`) of the collected config files (the exact search
+                                order is documented in the doc-string of the method :meth:`~ConsoleApp.add_cfg_files`).
+                                if not found in the config file then the default value specified of the option
+                                definition (the :meth:`.add_option` call) will be used. the other default value,
+                                specified in the :paramref:`~.default_value` kwarg of this method, will be returned only
+                                if the option name/id never got defined.
 
         This method has an alias named :meth:`get_opt`.
         """
