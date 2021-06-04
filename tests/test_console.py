@@ -14,7 +14,7 @@ from typing import cast, Any
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, os_user_name
+from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, norm_name, os_user_name
 from ae.paths import norm_path
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
@@ -1172,6 +1172,21 @@ class TestUser:
         assert 'additional_user_data' not in cae.registered_users[new_usr_id]
         assert cae.registered_users[os_usr_id]['user_name'] == usr_name
         assert cae.registered_users[new_usr_id]['user_name'] == usr_name
+
+    def test_register_user_empty_id(self, restore_app_env):
+        cae = ConsoleApp()
+        cae.user_id = ''
+        cae.register_user()
+
+        assert cae.user_id not in cae.registered_users
+
+    def test_set_user_id(self, restore_app_env):
+        cae = ConsoleApp()
+        usr_id = 'usr id with spaces'
+        assert norm_name(usr_id) != usr_id
+        cae.user_id = usr_id
+        assert cae.user_id != usr_id
+        assert cae.user_id == norm_name(usr_id)
 
     def test_user_section(self, restore_app_env):
         usr_id = 'usr_tst_id'
