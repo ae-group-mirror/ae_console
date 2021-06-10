@@ -31,21 +31,22 @@ auto-collecting features
 
 .. _app-title:
 .. _app-version:
-this code example, a skeleton of an app module, would run just fine - no `AssertionError`::
 
-    \"\"\" module docstring \"\"\"
+this code example, a skeleton of an app module, would run just fine - without raising any `AssertionError`::
+
+    \"\"\" module docstring title \"\"\"
     from ae.console import ConsoleApp
 
     __version__ = '1.2.3'
 
     ca = ConsoleApp()
 
-    assert ca.app_title == "module docstring"
+    assert ca.app_title == "module docstring title"
     assert ca.app_version == '1.2.3'
 
 if one of the kwargs :paramref:`~ConsoleApp.app_title` or :paramref:`~ConsoleApp.app_version` is not specified in the
-init call of the instance `ca`, then it automatically collects the app title from the docstring of the module, and the
-application version string from the module variable `__version__`.
+init call of the instance `ca`, then it automatically collects the app title from the docstring title of the module, and
+the application version string from the module variable `__version__`.
 
 .. _app-name:
 
@@ -101,9 +102,9 @@ config sections
 ^^^^^^^^^^^^^^^
 
 this module is supporting the `config file format <https://en.wikipedia.org/wiki/INI_file>`_ of Pythons built-in
-:class:`~configparser.ConfigParser` class, extended with :ref:`complex config value types <config-value-types>`.
-the following examples shows a config file with two config sections containing one config option (named `log_file`) and
-two config variables (`configVar1` and `configVar2`)::
+:class:`~configparser.ConfigParser` class, extended by more complex config value types. the following examples shows a
+config file with two config sections containing one config option (named `log_file`) and two config variables
+(`configVar1` and `configVar2`)::
 
     [aeOptions]
     log_file = './logs/your_log_file.log'
@@ -214,11 +215,11 @@ from ae.base import (  # type: ignore
 from ae.paths import norm_path, Collector, PATH_PLACEHOLDERS            # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
-    DEBUG_LEVEL_DISABLED, DEBUG_LEVELS, main_app_instance, ori_std_out, _logger, AppBase)
+    DEBUG_LEVEL_DISABLED, DEBUG_LEVELS, main_app_instance, ori_std_out, _LOGGER, AppBase)
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.1.51'
+__version__ = '0.2.51'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -372,8 +373,8 @@ class ConsoleApp(AppBase):
 
         log_file_name = self._init_logging(logging_params)
 
-        self.dpo(self.app_name, "      startup", self.startup_beg, self.app_title, logger=_logger)
-        self.dpo(f"####  {self.app_key} initialization......  ####", logger=_logger)
+        self.dpo(self.app_name, "      startup", self.startup_beg, self.app_title, logger=_LOGGER)
+        self.dpo(f"####  {self.app_key} initialization......  ####", logger=_LOGGER)
 
         # prepare argument parser
         if not formatter_class:
@@ -770,8 +771,8 @@ class ConsoleApp(AppBase):
                                 order is documented in the doc-string of the method :meth:`~ConsoleApp.add_cfg_files`).
                                 if not found in the config file then the default value specified of the option
                                 definition (the :meth:`.add_option` call) will be used. the other default value,
-                                specified in the :paramref:`~.default_value` kwarg of this method, will be returned only
-                                if the option name/id never got defined.
+                                specified in the :paramref:`~get_option.default_value` kwarg of this method, will be
+                                returned only if the option name/id never got defined.
 
         This method has an alias named :meth:`get_opt`.
         """
@@ -829,7 +830,7 @@ class ConsoleApp(AppBase):
 
         # finished argument parsing - now print chosen option values to the console
         self.startup_end = datetime.datetime.now()
-        self.po(f"####  {self.app_name}  V {self.app_version}  args parsed at {self.startup_end}  ####", logger=_logger)
+        self.po(f"####  {self.app_name}  V {self.app_version}  args parsed at {self.startup_end}  ####", logger=_LOGGER)
 
         self.debug_level = self.cfg_options['debug_level'].value
 
@@ -839,13 +840,13 @@ class ConsoleApp(AppBase):
 
         if self.debug:
             debug_levels = ", ".join([str(k) + "=" + v for k, v in DEBUG_LEVELS.items()])
-            self.po(f"  ##  Debug Level({debug_levels}): {self.debug_level}", logger=_logger)
+            self.po(f"  ##  Debug Level({debug_levels}): {self.debug_level}", logger=_LOGGER)
             if self._log_file_name:
-                self.po(f"   #  Log File: {self._log_file_name}", logger=_logger)
+                self.po(f"   #  Log File: {self._log_file_name}", logger=_LOGGER)
             if self.user_id:
-                self.po(f"   #  User Id: {self.user_id}", logger=_logger)
-            self.po(f"  ##  {self.app_key} System Environment:", logger=_logger)
-            self.po(sys_env_text(extra_sys_env_dict=self.app_env_dict()), logger=_logger)
+                self.po(f"   #  User Id: {self.user_id}", logger=_LOGGER)
+            self.po(f"  ##  {self.app_key} System Environment:", logger=_LOGGER)
+            self.po(sys_env_text(extra_sys_env_dict=self.app_env_dict()), logger=_LOGGER)
 
     # app user related properties and methods
 
