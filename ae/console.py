@@ -133,15 +133,22 @@ config variable via the value passed into :paramref:`~ConsoleApp.add_option.valu
 see :attr:`special encapsulated strings <ae.literal.Literal.value>`, respectively the config value literal.
 
 the following config variables are pre-defined in the :ref:`main config section <config-main-section>` and recognized by
-:mod:`this module <.console>` as well as by :mod:`.core`.
+:mod:`this module <.console>`, some of them also by the module/portion :mod:`ae.core`:
 
+* `debug_level` : debug logging verbosity level (this is also a :ref:`config option <config-options>` - set-able as
+  command line arg).
 * `logging_params` : general logging configuration parameters (py and ae logging)
   - :meth:`documented here <.core.AppBase.init_logging>`.
-* `py_logging_params` : configuration parameters to activate python logging
-  - `documented in the Python docs
-  <https://docs.python.org/3.6/library/logging.config.html#logging.config.dictConfig>`_.
-* `log_file` : log file name for ae logging (this is also a config option - set-able as command line arg).
+* `py_logging_params` : configuration parameters to activate python logging -
+  `documented in the Python docs <https://docs.python.org/3.6/library/logging.config.html#logging.config.dictConfig>`_.
+* `log_file` : log file name for ae logging (this is also a :ref:`config option <config-options>` - set-able as command
+  line arg).
+* `onboarding_tour_started` : count the onboarding tour starts since the installation of the app. will be reset to zero
+  after a user registration (by calling :meth:`~ConsoleApp.register_user`).
+* `registered_users` : users registered with their OS user name as user id (see :meth:`~ConsoleApp.register_user`).
 * `user_id` : id of the app user (default is determined from the `system user name <ae.base.os_user_name>`)
+* `user_specific_cfg_vars` : list of config variables storing an individual value for each registered user (see
+  section :ref:`user-specific-config-variables`).
 
 .. note::
   the value of a config variable can be overwritten by defining an OS environment variable with a name that is equal to
@@ -189,6 +196,9 @@ be abbreviated on the command line with the short `-L` option id.
     after an explicit definition of the optional config option `user_id` via :meth:`~ConsoleApp.add_option` it will be
     automatically used to initialize the :attr:`~ConsoleApp.user_id` attribute.
 
+
+.. _user-specific-config-variables:
+
 user specific config variables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -219,7 +229,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.2.51'
+__version__ = '0.2.52'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -910,11 +920,15 @@ class ConsoleApp(AppBase):
                 self.registered_users[user_id] = user_data
             self.set_var('registered_users', self.registered_users)
 
-            for section, name in self.user_specific_cfg_vars:
+            for section, var_name in self.user_specific_cfg_vars:
                 self.user_id = ''
-                value = self.get_var(name, section)
+                value = self.get_var(var_name, section)
                 self.user_id = user_id
-                self.set_var(name, value, section=section)
+                self.set_var(var_name, value, section=section)
+
+            var_name = 'onboarding_tour_started'
+            self.set_var(var_name + '_' + user_id, self.get_var(var_name, default_value=-3))
+            self.set_var(var_name, 0)  # reset onboarding tour start counter cfg var for other, non-registered OS users
 
     def user_section(self, section: str, name: str) -> str:
         """ return the user section name if the passed (section, name) setting id is user-specific.
