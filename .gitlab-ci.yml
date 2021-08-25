@@ -50,22 +50,7 @@ pylint:
       - pylint/
 
 
-deploy_staging:
-  stage: deploy
-  variables:
-    TWINE_USERNAME: $PYPI_USERNAME
-    TWINE_PASSWORD: $PYPI_PASSWORD
-  before_script:
-     - pip install --upgrade twine wheel de_core
-     - python setup.py sdist bdist_wheel
-  script:
-    - twine upload --verbose dist/*
-  only:
-    - master
-
-
 pages:
-  stage: deploy
   dependencies:
     - pytest
     - mypy
@@ -83,5 +68,20 @@ pages:
   artifacts:
     paths:
       - public
-  only:
-    - master
+
+
+deploy_staging:
+  stage: deploy
+  rules:
+    # - if: $CI_COMMIT_TAG =~ /^v?[0-9]+[.][0-9]+([.][0-9]+)?$/
+    # CI_COMMIT_TAG is only set if the push does contain a new tag (and no new commit); separate push and rules are
+    # additionally creating duplicate jobs on gitlab CI - finally using release branch to trigger deploy
+    - if: $CI_COMMIT_BRANCH =~ /^release/
+  variables:
+    TWINE_USERNAME: $PYPI_USERNAME
+    TWINE_PASSWORD: $PYPI_PASSWORD
+  before_script:
+     - pip install --upgrade twine wheel de_core
+     - python setup.py sdist bdist_wheel
+  script:
+    - twine upload --verbose dist/*

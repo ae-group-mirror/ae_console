@@ -14,7 +14,7 @@ from typing import cast, Any
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, norm_name, os_user_name
+from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, os_user_name
 from ae.paths import norm_path
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
@@ -59,6 +59,7 @@ class TestHelpers:
         assert config_value_string(value) == value.strftime(DATE_TIME_ISO)
 
 
+# noinspection PyUnusedLocal
 class TestAeLogging:
     def test_open_log_file_with_suppressed_stdout(self, capsys, restore_app_env):
         cae = ConsoleApp('test_log_file_rotation', suppress_stdout=True)
@@ -222,6 +223,7 @@ class TestAeLogging:
         assert main_app_instance() is None
 
 
+# noinspection PyUnusedLocal
 class TestPythonLogging:
     """ test python logging module support
     """
@@ -362,6 +364,7 @@ class TestPythonLogging:
         assert main_app_instance() is None
 
 
+# noinspection PyUnusedLocal
 class TestConsoleAppBasics:
     def test_app_name(self, restore_app_env, sys_argv_app_key_restore):
         assert main_app_instance() is None
@@ -460,6 +463,7 @@ class TestConsoleAppBasics:
         assert main_app_instance() is None
 
 
+# noinspection PyUnusedLocal
 class TestConfigOptions:
     def test_missing_cfg_file(self, restore_app_env):
         file_name = 'm_i_s_s_i_n_g' + INI_EXT
@@ -716,6 +720,12 @@ class TestConfigOptions:
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testBoolOption', 'test bool eval option', False, 'Z')
         assert cae.get_opt('testBoolOption') is True
+
+    def test_short_option_bool_flag(self, restore_app_env, sys_argv_app_key_restore):
+        cae = ConsoleApp('test_option_bool_flag')
+        sys.argv = ['test', '-Z']
+        cae.add_opt('testBoolFlagOption', 'test bool flag option', UNSET, 'Z')
+        assert cae.get_opt('testBoolFlagOption') is True
 
     def test_short_option_date_str(self, restore_app_env, sys_argv_app_key_restore):
         cae = ConsoleApp('test_option_date_str')
@@ -995,6 +1005,7 @@ class TestConfigOptions:
         assert main_app_instance() is None
 
 
+# noinspection PyUnusedLocal
 class TestUser:
     def test_load_user_cfg_user_id_from_os(self, restore_app_env, config_fna_vna_vva):
         _file_name, _var_name, _old_var_val = config_fna_vna_vva()
