@@ -51,6 +51,7 @@ pylint:
 
 
 pages:
+  stage: deploy
   dependencies:
     - pytest
     - mypy
