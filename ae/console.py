@@ -220,7 +220,7 @@ from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 from ae.base import (  # type: ignore
-    CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT,
+    CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UNSET,
     env_str, instantiate_config_parser, norm_name, os_user_name, sys_env_dict, sys_env_text)
 from ae.paths import norm_path, Collector, PATH_PLACEHOLDERS            # type: ignore
 # noinspection PyProtectedMember
@@ -229,7 +229,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.2.53'
+__version__ = '0.2.54'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -721,9 +721,15 @@ class ConsoleApp(AppBase):
         :param name:        string specifying the option id and short description of this new option.
                             the name value will also be available as long command line argument option (case-sens.).
         :param desc:        description and command line help string of this new option.
-        :param value:       default value and the type of the option. this value will be used only if the config values
-                            are not specified in any config file. the command line argument option value
-                            will always overwrite this value (and any value in any config file).
+        :param value:       default value and the type of the option. the passed value will be used only if this option
+                            is not specified as command line argument nor exists as config variable in any config file.
+                            the command line argument option value will always overwrite this value (and any value in
+                            any config file).
+
+                            pass `UNSET` to define a boolean flag option, specified without a value on the command line.
+                            the resulting value will be `True` if the option will be specified on the command line, else
+                            `False`. specifying a value on the command line results in a `SystemExit` on parsing.
+
         :param short_opt:   short option character. if not passed or passed as '' then the first character of the name
                             will be used. please note that the short options 'D' and 'L' are already used internally
                             by :class:`ConsoleApp` (recommending using lower-case options for your application).
@@ -748,16 +754,20 @@ class ConsoleApp(AppBase):
         args.append('--' + name)
 
         # determine config value to use as default for command line arg
-        option = Literal(literal_or_value=value, name=name)
+        option = Literal(literal_or_value=False if value is UNSET else value, name=name)
         # alt: cfg_val = self._get_cfg_parser_val(name, self.user_section(MAIN_SECTION_NAME, name), default_value=value)
-        cfg_val = self.get_var(name, section=MAIN_SECTION_NAME, default_value=value)
+        cfg_val = self.get_var(name, section=MAIN_SECTION_NAME, default_value=False if value is UNSET else value)
         option.value = cfg_val
-        kwargs = dict(help=desc, default=cfg_val, type=option.convert_value, choices=choices, metavar=name)
-        if multiple:
-            kwargs['type'] = option.append_value
-            if choices:
-                kwargs['choices'] = None    # for multiple options this instance need to check the choices
-                self.cfg_opt_choices[name] = choices
+        kwargs = dict(help=desc, default=cfg_val)
+        if value is UNSET:
+            kwargs['action'] = 'store_true'
+        else:
+            kwargs.update(type=option.convert_value, choices=choices, metavar=name)
+            if multiple:
+                kwargs['type'] = option.append_value
+                if choices:
+                    kwargs['choices'] = None    # for multiple options this instance need to check the choices
+                    self.cfg_opt_choices[name] = choices
 
         self._arg_parser.add_argument(*args, **kwargs)
 
