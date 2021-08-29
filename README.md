@@ -63,7 +63,7 @@ detailed info on the features and usage of this portion is available at
 [ReadTheDocs](https://ae.readthedocs.io/en/latest/_autosummary/ae.console.html#module-ae.console
 "ae_console documentation").
 
-<!-- common files version 0.2.82 deployed package/portion version 0.2.58)
+<!-- common files version 0.2.82 deployed package/portion version 0.2.59)
      to https://gitlab.com/ae-group as ae_console module as well as
      to https://ae-group.gitlab.io with CI check results as well as
      to https://pypi.org/project/ae-console as namespace portion ae-console.
