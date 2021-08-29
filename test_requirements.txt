@@ -1,9 +1,11 @@
 # THIS FILE IS EXCLUSIVELY MAINTAINED IN THE NAMESPACE ROOT PACKAGE. CHANGES HAVE TO BE DONE THERE.
+ae_paths        # including ae.base and ae.files for test_resources.py
+anybadge
+coverage-badge
 flake8
 mypy
+Pillow          # for test_resources.py
 pylint
 pylint-exit
 pytest
 pytest-cov
-anybadge
-coverage-badge

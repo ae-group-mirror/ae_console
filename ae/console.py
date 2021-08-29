@@ -2,18 +2,15 @@
 console application environment
 ===============================
 
-the :class:`ConsoleApp` allows your application the easy declaration of command line arguments and options.
-
-:class:`ConsoleApp` inherits from the :class:`~ae.core.AppBase` application base class, providing dynamically
-configurable logging and debugging features (see also the :mod:`docstrings of the core module <ae.core>`).
+an instance of the :class:`ConsoleApp` class is representing a python application with dynamically configurable logging,
+debugging features (inherited from :class:`~ae.core.AppBase`), command line arguments and config files and options.
 
 
 define command line arguments and options
 -----------------------------------------
 
-after creating an instance of the class :class:`ConsoleApp`, use the methods :meth:`~ConsoleApp.add_argument` and
-:meth:`~ConsoleApp.add_option` to define the command line arguments and the :ref:`config options <config-options>`.
-finally call the :meth:`~ConsoleApp.run_app` method to parse the command line arguments::
+the methods :meth:`~ConsoleApp.add_argument` and :meth:`~ConsoleApp.add_option` are defining command line arguments and
+:ref:`config options <config-options>`, finally parsed/loaded by calling :meth:`~ConsoleApp.run_app`::
 
     ca = ConsoleApp(app_title="command line arguments demo", app_version="3.6.9")
     ca.add_argument('argument_name_or_id', help="Help text for this command line argument")
@@ -21,18 +18,20 @@ finally call the :meth:`~ConsoleApp.run_app` method to parse the command line ar
     ...
     ca.run_app()
 
-the values of the commend line arguments can be determined by calling the methods :meth:`~ConsoleApp.get_argument` and
-:meth:`~ConsoleApp.get_option` of the :class:`ConsoleApp` app instance. additional configuration values, persistently
-stored in :ref:`INI/CFG files <config-files>`, are provided by the :meth:`~ConsoleApp.get_variable` method.
+the values of the commend line arguments and options are determined via the methods :meth:`~ConsoleApp.get_argument` and
+:meth:`~ConsoleApp.get_option`. additional configuration values, stored in :ref:`INI/CFG files <config-files>`, are
+accessible via the :meth:`~ConsoleApp.get_variable` method.
 
 
-auto-collecting features
-------------------------
+auto-collected app name, title and version
+------------------------------------------
 
 .. _app-title:
 .. _app-version:
 
-this code example, a skeleton of an app module, would run just fine - without raising any `AssertionError`::
+if one of the kwargs :paramref:`~ConsoleApp.app_title` or :paramref:`~ConsoleApp.app_version` is not specified in the
+init call of the :class:`ConsoleApp` class instance, then they will automatically get determined from your app main
+module: the app title from the docstring title, and the application version string from the `__version__` variable::
 
     \"\"\" module docstring title \"\"\"
     from ae.console import ConsoleApp
@@ -44,15 +43,11 @@ this code example, a skeleton of an app module, would run just fine - without ra
     assert ca.app_title == "module docstring title"
     assert ca.app_version == '1.2.3'
 
-if one of the kwargs :paramref:`~ConsoleApp.app_title` or :paramref:`~ConsoleApp.app_version` is not specified in the
-init call of the instance `ca`, then it automatically collects the app title from the docstring title of the module, and
-the application version string from the module variable `__version__`.
-
 .. _app-name:
 
 :class:`ConsoleApp` also determines on instantiation the name/id of your application, if not explicitly specified in
 :paramref:`~ConsoleApp.app_name`. other application environment vars/options (like e.g. the application startup folder
-path and the current working directory path) will be automatically initialized and provided via the `ca` instance.
+path and the current working directory path) will be automatically initialized and provided via the app instance.
 
 
 configuration files, sections, variables and options
@@ -135,20 +130,17 @@ see :attr:`special encapsulated strings <ae.literal.Literal.value>`, respectivel
 the following config variables are pre-defined in the :ref:`main config section <config-main-section>` and recognized by
 :mod:`this module <.console>`, some of them also by the module/portion :mod:`ae.core`:
 
-* `debug_level` : debug logging verbosity level (this is also a :ref:`config option <config-options>` - set-able as
-  command line arg).
-* `logging_params` : general logging configuration parameters (py and ae logging)
-  - :meth:`documented here <.core.AppBase.init_logging>`.
-* `py_logging_params` : configuration parameters to activate python logging -
-  `documented in the Python docs <https://docs.python.org/3.6/library/logging.config.html#logging.config.dictConfig>`_.
-* `log_file` : log file name for ae logging (this is also a :ref:`config option <config-options>` - set-able as command
-  line arg).
-* `onboarding_tour_started` : count the onboarding tour starts since the installation of the app. will be reset to zero
-  after a user registration (by calling :meth:`~ConsoleApp.register_user`).
-* `registered_users` : users registered with their OS user name as user id (see :meth:`~ConsoleApp.register_user`).
-* `user_id` : id of the app user (default is determined from the `system user name <ae.base.os_user_name>`)
-* `user_specific_cfg_vars` : list of config variables storing an individual value for each registered user (see
-  section :ref:`user-specific-config-variables`).
+* `debug_level`: debug logging verbosity level :ref:`config option <config-options>`
+* `log_file`: ae logging file name (this is also a :ref:`config option <config-options>` - set-able as command line arg)
+* `logging_params`: :meth:`general ae logging configuration parameters (py and ae logging) <.core.AppBase.init_logging>`
+* `py_logging_params`: `python logging configuration
+  <https://docs.python.org/3.6/library/logging.config.html#logging.config.dictConfig>`_
+* `onboarding_tour_started`: count the onboarding tour starts since the installation of the app. will be reset to zero
+  after a user registration (by calling :meth:`~ConsoleApp.register_user`)
+* `registered_users`: users registered with their OS user name as user id (see :meth:`~ConsoleApp.register_user`)
+* `user_id`: id of the app user (default is determined from the `system user name <ae.base.os_user_name>`)
+* `user_specific_cfg_vars`: list of config variables storing an individual value for each registered user (see
+  section :ref:`user-specific-config-variables`)
 
 .. note::
   the value of a config variable can be overwritten by defining an OS environment variable with a name that is equal to
@@ -196,7 +188,6 @@ be abbreviated on the command line with the short `-L` option id.
     after an explicit definition of the optional config option `user_id` via :meth:`~ConsoleApp.add_option` it will be
     automatically used to initialize the :attr:`~ConsoleApp.user_id` attribute.
 
-
 .. _user-specific-config-variables:
 
 user specific config variables
@@ -229,7 +220,7 @@ from ae.core import (                                                   # type: 
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.2.54'
+__version__ = '0.2.58'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -721,15 +712,11 @@ class ConsoleApp(AppBase):
         :param name:        string specifying the option id and short description of this new option.
                             the name value will also be available as long command line argument option (case-sens.).
         :param desc:        description and command line help string of this new option.
-        :param value:       default value and the type of the option. the passed value will be used only if this option
+        :param value:       default value and type of the option. returned by :meth:`.get_option` if this option
                             is not specified as command line argument nor exists as config variable in any config file.
-                            the command line argument option value will always overwrite this value (and any value in
-                            any config file).
-
                             pass `UNSET` to define a boolean flag option, specified without a value on the command line.
                             the resulting value will be `True` if the option will be specified on the command line, else
                             `False`. specifying a value on the command line results in a `SystemExit` on parsing.
-
         :param short_opt:   short option character. if not passed or passed as '' then the first character of the name
                             will be used. please note that the short options 'D' and 'L' are already used internally
                             by :class:`ConsoleApp` (recommending using lower-case options for your application).
