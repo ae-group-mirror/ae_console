@@ -37,8 +37,8 @@ def restore_app_env(sys_argv_app_key_restore):
 
     yield sys_argv_app_key_restore
 
-    # added outer list() because unregister does _APP_INSTANCES.pop() calls
-    # and added inner list() because the .keys() 'generator' object is not reversible
+    # added outer list because unregister does _APP_INSTANCES.pop() calls
+    # and added inner list because the .keys() 'generator' object is not reversible
     with app_inst_lock:
         app_keys = list(reversed(list(_APP_INSTANCES.keys())))
         for key in app_keys:
@@ -75,7 +75,7 @@ def delete_files(file_name, keep_ext=False, ret_type='count'):
     else:
         file_mask = file_name + '*'
     cnt = 0
-    ret = list()
+    ret = []
     for fn in glob.glob(file_mask):
         if ret_type == 'contents':
             with open(fn) as fd:

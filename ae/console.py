@@ -5,6 +5,8 @@ console application environment
 an instance of the :class:`ConsoleApp` class is representing a python application with dynamically configurable logging,
 debugging features (inherited from :class:`~ae.core.AppBase`), command line arguments and config files and options.
 
+the helper function :func:`sh_exec` provided by this portion simplifies the execution of shell/console commands.
+
 
 define command line arguments and options
 -----------------------------------------
@@ -103,7 +105,7 @@ config file with two config sections containing one config option (named `log_fi
 
     [aeOptions]
     log_file = './logs/your_log_file.log'
-    configVar1 = ['list-element1', ('list-element2-1', 'list-element2-2', ), dict()]
+    configVar1 = ['list-element1', ('list-element2-1', 'list-element2-2', ), {}]
 
     [YourSectionName]
     configVar2 = {'key1': 'value 1', 'key2': 2222, 'key3': datetime.datetime.now()}
@@ -204,23 +206,24 @@ revoke which config variables the app is storing individually for each user.
 """
 import os
 import datetime
+import subprocess
 import threading
 
-from typing import Any, Callable, Dict, Iterable, Optional, Set, Type, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Set, Type, Tuple, Union
 from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 from ae.base import (  # type: ignore
-    CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UNSET,
+    CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
     env_str, instantiate_config_parser, norm_name, os_user_name, sys_env_dict, sys_env_text)
-from ae.paths import norm_path, Collector, PATH_PLACEHOLDERS            # type: ignore
+from ae.paths import normalize, Collector, PATH_PLACEHOLDERS            # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                   # type: ignore  # for mypy
     DEBUG_LEVEL_DISABLED, DEBUG_LEVELS, main_app_instance, ori_std_out, _LOGGER, AppBase)
 from ae.literal import Literal                                          # type: ignore
 
 
-__version__ = '0.2.59'
+__version__ = '0.2.61'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -245,6 +248,44 @@ def config_value_string(value: Any) -> str:
     else:
         str_val = repr(value)
     return str_val.replace('%', '%%')
+
+
+def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "",
+            lines_output: Optional[List[str]] = None, cae: Optional[Any] = None) -> int:
+    """ execute command in the current working directory of the OS console/shell.
+
+    :param command_line:        command line string to execute on the console/shell. could contain command line args
+                                separated by whitespace characters (alternatively use :paramref:`~sh_exec.extra_args`).
+    :param extra_args:          optional sequence of extra command line arguments.
+    :param console_input:       optional string to be sent to the stdin stream of the console/shell.
+    :param lines_output:        optional list to return the lines printed to stdout/stderr on execution.
+    :param cae:                 optional :class:`~ae.console.ConsoleApp` instance, only used for logging. to suppress
+                                any logging output pass :data:`~ae.base.UNSET`.
+    :return:                    return code of the executed command or 126 if execution raised any other exception.
+    """
+    args = command_line.split() + list(extra_args)
+    print_out = cae.po if cae else print if cae is None else lambda *_, **__: None
+    debug_out = cae.dpo if cae else lambda *_, **__: None
+    debug_out(f"    # executing at {os.getcwd()}: {args}")
+    pipe = None if lines_output is None else subprocess.PIPE
+    run_result: Union[subprocess.CompletedProcess, subprocess.CalledProcessError]   # having: stdout/stderr/returncode
+    try:
+        run_result = subprocess.run(args, stdout=pipe, stderr=pipe, input=console_input.encode(), check=True)
+    except subprocess.CalledProcessError as ex:                                             # pragma: no cover
+        debug_out(f"****  subprocess.run({args}) returned non-zero exit code {ex.returncode}; exception={ex}")
+        run_result = ex
+    except Exception as ex:
+        print_out(f"****  subprocess.run({args}) raised exception {ex}")
+        return 126
+
+    if lines_output is not None:
+        if run_result.stdout:
+            lines_output.extend([line for line in run_result.stdout.decode().split(os.linesep) if line])
+        if run_result.stderr and (not cae or cae.debug):
+            lines_output.append("vvvvv STDERR vvvvv")
+            lines_output.extend([line for line in run_result.stderr.decode().split(os.linesep) if line])
+            lines_output.append("^^^^^ STDERR ^^^^^")
+    return run_result.returncode
 
 
 class ConsoleApp(AppBase):
@@ -343,14 +384,14 @@ class ConsoleApp(AppBase):
 
         with config_lock:
             self._cfg_parser = instantiate_config_parser()                  #: ConfigParser instance
-            self.cfg_options: Dict[str, Literal] = dict()                   #: all config options
-            self.cfg_opt_choices: Dict[str, Iterable] = dict()              #: all valid config option choices
-            self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or dict()      #: app-specific vars for init of cfg options
+            self.cfg_options: Dict[str, Literal] = {}                       #: all config options
+            self.cfg_opt_choices: Dict[str, Iterable] = {}                  #: all valid config option choices
+            self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or {}          #: app-specific vars for init of cfg options
 
             # prepare config files, including default config file (last existing INI/CFG file) for
             # to write to. if there is no INI file at all then create on demand a <app_name>.INI file in the cwd.
             # note: the main INI file default file path will possibly be overwritten by :meth:`.load_cfg_files`.
-            self._cfg_files: list = list()                                  #: list of all found INI/CFG files
+            self._cfg_files: list = []                                      #: list of all found INI/CFG files
             self._main_cfg_fnam: str = os.path.join(os.getcwd(), self.app_name + INI_EXT)  #: def main config file name
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
             warn_msg = self.add_cfg_files(*additional_cfg_files)
@@ -364,7 +405,7 @@ class ConsoleApp(AppBase):
             """
         self.load_cfg_files()
 
-        self.registered_users: Dict[str, Dict[str, Any]] = dict()
+        self.registered_users: Dict[str, Dict[str, Any]] = {}
         self._user_id = ''
         self.user_specific_cfg_vars: Set[Tuple[str, str]] = set()
         self._init_default_user_cfg_vars()
@@ -440,7 +481,7 @@ class ConsoleApp(AppBase):
                 logging_params['log_file_name'] = log_file_name             # .. finally cfg log_file / log file arg
 
         if logging_params.get('log_file_name'):                             # replace placeholders if has log file path
-            logging_params['log_file_name'] = norm_path(logging_params['log_file_name'])
+            logging_params['log_file_name'] = normalize(logging_params['log_file_name'])
 
         super().init_logging(**logging_params)
 
@@ -531,7 +572,7 @@ class ConsoleApp(AppBase):
             with config_lock:
                 return tuple((cfg_parser or self._cfg_parser).options(section))
         except NoSectionError:
-            self.dpo(f"ConsoleApp.cfg_section_variable_names: ignoring missing config file section {section}")
+            self.vpo(f"   ## ConsoleApp.cfg_section_variable_names: ignoring missing config file section {section}")
             return tuple()
 
     def _get_cfg_parser_val(self, name: str, section: str,
@@ -706,7 +747,7 @@ class ConsoleApp(AppBase):
     get_arg = get_argument      #: alias of method :meth:`.get_argument`
 
     def add_option(self, name: str, desc: str, value: Any,
-                   short_opt: str = None, choices: Optional[Iterable] = None, multiple: bool = False):
+                   short_opt: Union[str, UnsetType] = '', choices: Optional[Iterable] = None, multiple: bool = False):
         """ defining and adding a new config option for this app.
 
         :param name:        string specifying the option id and short description of this new option.
@@ -718,8 +759,9 @@ class ConsoleApp(AppBase):
                             the resulting value will be `True` if the option will be specified on the command line, else
                             `False`. specifying a value on the command line results in a `SystemExit` on parsing.
         :param short_opt:   short option character. if not passed or passed as '' then the first character of the name
-                            will be used. please note that the short options 'D' and 'L' are already used internally
-                            by :class:`ConsoleApp` (recommending using lower-case options for your application).
+                            will be used. passing `UNSET` or `None` prevents the declaration of a short option. please
+                            note that the short options 'h', 'D' and 'L' are already used internally by the classes
+                            :class:`~argparse.ArgumentParser` and :class:`ConsoleApp`.
         :param choices:     list of valid option values (optional, default=allow all values).
         :param multiple:    True if option can be added multiple times to command line (optional, default=False).
 
@@ -735,9 +777,11 @@ class ConsoleApp(AppBase):
         if short_opt == '':
             short_opt = name[0]
 
-        args = list()
+        args = []
         if short_opt and len(short_opt) == 1:
-            args.append('-' + short_opt)
+            short_opt = '-' + short_opt
+            assert short_opt not in self._arg_parser._option_string_actions, f"short_opt {short_opt} already exists"
+            args.append(short_opt)
         args.append('--' + name)
 
         # determine config value to use as default for command line arg
@@ -849,12 +893,12 @@ class ConsoleApp(AppBase):
 
         if self.debug:
             debug_levels = ", ".join([str(k) + "=" + v for k, v in DEBUG_LEVELS.items()])
-            self.po(f"  ##  Debug Level({debug_levels}): {self.debug_level}", logger=_LOGGER)
+            self.po(f"  ##  debug level({debug_levels}): {self.debug_level}", logger=_LOGGER)
             if self._log_file_name:
-                self.po(f"   #  Log File: {self._log_file_name}", logger=_LOGGER)
+                self.po(f"   #  log file: {self._log_file_name}", logger=_LOGGER)
             if self.user_id:
-                self.po(f"   #  User Id: {self.user_id}", logger=_LOGGER)
-            self.po(f"  ##  {self.app_key} System Environment:", logger=_LOGGER)
+                self.po(f"   #  user id: {self.user_id}", logger=_LOGGER)
+            self.po(f"  ##  {self.app_key} system environment:", logger=_LOGGER)
             self.po(sys_env_text(extra_sys_env_dict=self.app_env_dict()), logger=_LOGGER)
 
     # app user related properties and methods
@@ -883,11 +927,11 @@ class ConsoleApp(AppBase):
                     usr_id = self._get_cfg_parser_val('user_id', MAIN_SECTION_NAME, default_value=os_user_name())
                 self.user_id = usr_id
 
-            reg_users = self.get_var('registered_users', default_value=dict())
+            reg_users = self.get_var('registered_users', default_value={})
             if reg_users:
                 self.registered_users = reg_users
 
-            usr_data = reg_users.get(self.user_id, dict())
+            usr_data = reg_users.get(self.user_id, {})
             self.user_specific_cfg_vars = usr_data.get('user_specific_cfg_vars',
                                                        self.get_var('user_specific_cfg_vars',
                                                                     default_value=self.user_specific_cfg_vars))

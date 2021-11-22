@@ -2,9 +2,9 @@
 
 # THIS FILE IS EXCLUSIVELY MAINTAINED IN THE NAMESPACE ROOT PACKAGE. CHANGES HAVE TO BE DONE THERE.
 
-this file get run by each portion of this namespace for builds (sdist/bdist_wheel) and installation (install); also gets
-imported by the root package (for the globals defined here) for documentation builds (docs/conf.py), common file deploys
-and commit preparations.
+this file get run by each portion of this namespace package for builds (sdist/bdist_wheel)
+and installation (install); also gets imported by the root package (for the globals defined
+here) for documentation builds (docs/conf.py), common file deploys and commit preparations.
 """
 import pprint
 import setuptools
@@ -12,8 +12,11 @@ import setuptools
 from de.core import file_content, namespace_env_vars
 
 
+namespace_name = 'ae'
+
+
 if __name__ == "__main__":
-    nev = namespace_env_vars()
+    nev = namespace_env_vars(namespace_name)
     package_name = nev['package_name']
 
     setup_kwargs = dict(

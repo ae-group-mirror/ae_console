@@ -2,23 +2,23 @@
 import datetime
 import logging
 import os
-from unittest.mock import patch
-
 import pytest
+import subprocess
 import sys
 import threading
 import time
 
 from argparse import ArgumentError
+from unittest.mock import patch
 from typing import cast, Any
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, os_user_name
-from ae.paths import norm_path
+from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, os_user_name, write_file
+from ae.paths import normalize
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
-from ae.console import MAIN_SECTION_NAME, ConsoleApp, config_value_string
+from ae.console import MAIN_SECTION_NAME, ConsoleApp, config_value_string, sh_exec
 
 
 @pytest.fixture
@@ -26,11 +26,10 @@ def config_fna_vna_vva(request):
     """ prepare config test files """
     def _setup_and_teardown(file_name="test_config" + CFG_EXT, var_name='test_config_var',
                             var_value: Any = 'test_value', additional_line: str = ""):
-        file_name = norm_path(file_name)
+        file_name = normalize(file_name)
         if os.path.sep not in file_name:
             file_name = os.path.join(os.getcwd(), file_name)
-        with open(file_name, 'w') as f:
-            f.write(f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}\n{additional_line}")
+        write_file(file_name, f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}\n{additional_line}")
 
         def _tear_down():               # using yield instead of finalizer does not execute the teardown part
             if os.path.exists(file_name):       # some tests are deleting the config file explicitly
@@ -47,9 +46,9 @@ class TestHelpers:
         assert config_value_string(369) == "369"
         assert config_value_string(369.3) == "369.3"
         assert config_value_string('string') == "'string'"
-        assert config_value_string(dict()) == "{}"
+        assert config_value_string({}) == "{}"
         assert config_value_string(dict(a=1)) == "{'a': 1}"
-        assert config_value_string(list()) == "[]"
+        assert config_value_string([]) == "[]"
         assert config_value_string(list('b')) == "['b']"
         assert config_value_string(tuple()) == "()"
         assert config_value_string(tuple((3, 'a', 2.1))) == "(3, 'a', 2.1)"
@@ -112,7 +111,7 @@ class TestAeLogging:
         try:
             assert cfg_val == var_val
             assert cae.get_var(var_name) == var_val
-            assert cae._log_file_name == cfg_val['log_file_name']
+            assert cae._log_file_name == os.path.realpath(cfg_val['log_file_name'])
             assert not os.path.exists(cfg_val['log_file_name'])
 
             cae.po(log_msg)
@@ -365,105 +364,6 @@ class TestPythonLogging:
 
 
 # noinspection PyUnusedLocal
-class TestConsoleAppBasics:
-    def test_app_name(self, restore_app_env, sys_argv_app_key_restore):
-        assert main_app_instance() is None
-        name = 'tan_cae_name'
-        sys.argv = [name, ]
-        cae = ConsoleApp()
-        assert cae.app_name == name
-        assert main_app_instance() is cae
-
-    def test_app_instances_reset1(self):
-        assert main_app_instance() is None
-
-    def test_add_opt(self, restore_app_env):
-        cae = ConsoleApp('test_add_opt')
-        opt_name = 'test_opt'
-        opt_val = 'test_opt_value'
-        assert cae.get_option(opt_name) is None
-        cae.add_opt(opt_name, 'test_opt_description', opt_val, short_opt='')
-        assert cae.get_option(opt_name) == opt_val
-
-    def test_set_opt(self, restore_app_env, sys_argv_app_key_restore):
-        tst_val = 'test_init_value'
-        cae = ConsoleApp('test_set_opt')
-        cae.add_opt('test_opt', 'test_opt_description', tst_val)
-        sys.argv = ['tso_pseudo_arg']
-        assert cae.get_opt('test_opt') == tst_val
-        tst_val = 'test_value'
-        cae.set_opt('test_opt', tst_val, save_to_config=False)
-        assert cae.get_opt('test_opt') == tst_val
-
-        cae.set_opt('debug_level', DEBUG_LEVEL_VERBOSE, save_to_config=False)
-        assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
-
-    def test_add_argument(self, restore_app_env):
-        cae = ConsoleApp('test_add_argument')
-        cae.add_argument('test_arg')
-
-    def test_get_argument(self, restore_app_env, sys_argv_app_key_restore):
-        cae = ConsoleApp('test_get_argument')
-        cae.add_argument('test_arg')
-        arg_val = 'test_arg_val'
-        sys.argv = ['test_app', arg_val]
-        assert cae.get_argument('test_arg') == arg_val
-
-    def test_debug_level_set_property(self, restore_app_env):
-        cae = ConsoleApp()
-        assert cae.debug_level == DEBUG_LEVEL_DISABLED
-        cae.debug_level = DEBUG_LEVEL_VERBOSE
-        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
-
-    def test_show_help(self, restore_app_env):
-        cae = ConsoleApp('test_show_help')
-        cae.show_help()
-
-    def test_sys_env_id(self, capsys, restore_app_env, sys_argv_app_key_restore):
-        sei = 'tSt'
-        cae = ConsoleApp('test_sys_env_id', sys_env_id=sei, debug_level=DEBUG_LEVEL_VERBOSE)
-        assert cae.sys_env_id == sei
-        cae.po(sei)     # increase coverage
-        out, err = capsys.readouterr()
-        assert sei in out
-
-        # special case for error code path coverage
-        ca2 = ConsoleApp('test_sys_env_id_COPY')
-        assert ca2.sys_env_id == ''
-        assert not ca2.get_opt('debug_level')
-
-    def test_shutdown_basics(self, restore_app_env):
-        def thr():
-            """ thread """
-            while running:
-                pass
-
-        cae = ConsoleApp('shutdown_basics')
-        cae.shutdown(exit_code=None)
-
-        activate_multi_threading()
-        cae.shutdown(exit_code=None, timeout=0.6)       # tests freezing in debug run without timeout/thread-join
-
-        running = True
-        threading.Thread(target=thr).start()
-        cae.shutdown(exit_code=None, timeout=0.6)
-        running = False
-
-    def test_shutdown_coverage(self, restore_app_env):
-        cae = ConsoleApp('shutdown_coverage')
-        cae.shutdown(exit_code=None, timeout=0.9)
-
-        cae._log_file_index = 1
-        cae.shutdown(exit_code=None, timeout=0.1)
-
-        cae._nul_std_out = open(os.devnull, 'w')
-        cae.shutdown(exit_code=None, timeout=0.1)
-
-    def test_app_instances_reset2(self):
-        assert main_app_instance() is None
-
-
-# noinspection PyUnusedLocal
 class TestConfigOptions:
     def test_missing_cfg_file(self, restore_app_env):
         file_name = 'm_i_s_s_i_n_g' + INI_EXT
@@ -508,7 +408,7 @@ class TestConfigOptions:
         cae.load_cfg_files()
         assert cae.get_var(var_name) == usr_value                       # usr variable overwrite cwd variable
 
-        app_path = norm_path("{ado}")
+        app_path = normalize("{ado}")
         if not os.path.exists(app_path):
             os.mkdir(app_path)  # will not be removed after test run!
         app_file, _, app_value = config_fna_vna_vva(file_name='{ado}/test' + INI_EXT, var_value='ado')
@@ -1006,6 +906,161 @@ class TestConfigOptions:
 
 
 # noinspection PyUnusedLocal
+class TestConsoleAppBasics:
+    def test_app_name(self, restore_app_env, sys_argv_app_key_restore):
+        assert main_app_instance() is None
+        name = 'tan_cae_name'
+        sys.argv = [name, ]
+        cae = ConsoleApp()
+        assert cae.app_name == name
+        assert main_app_instance() is cae
+
+    def test_app_instances_reset1(self):
+        assert main_app_instance() is None
+
+    def test_add_opt(self, restore_app_env):
+        cae = ConsoleApp('test_add_opt')
+        opt_name = 'test_opt'
+        opt_val = 'test_opt_value'
+        assert cae.get_option(opt_name) is None
+        cae.add_opt(opt_name, 'test_opt_description', opt_val, short_opt='')
+        assert cae.get_option(opt_name) == opt_val
+
+    def test_set_opt(self, restore_app_env, sys_argv_app_key_restore):
+        tst_val = 'test_init_value'
+        cae = ConsoleApp('test_set_opt')
+        cae.add_opt('test_opt', 'test_opt_description', tst_val)
+        sys.argv = ['tso_pseudo_arg']
+        assert cae.get_opt('test_opt') == tst_val
+        tst_val = 'test_value'
+        cae.set_opt('test_opt', tst_val, save_to_config=False)
+        assert cae.get_opt('test_opt') == tst_val
+
+        cae.set_opt('debug_level', DEBUG_LEVEL_VERBOSE, save_to_config=False)
+        assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
+
+    def test_add_argument(self, restore_app_env):
+        cae = ConsoleApp('test_add_argument')
+        cae.add_argument('test_arg')
+
+    def test_get_argument(self, restore_app_env, sys_argv_app_key_restore):
+        cae = ConsoleApp('test_get_argument')
+        cae.add_argument('test_arg')
+        arg_val = 'test_arg_val'
+        sys.argv = ['test_app', arg_val]
+        assert cae.get_argument('test_arg') == arg_val
+
+    def test_debug_level_set_property(self, restore_app_env):
+        cae = ConsoleApp()
+        assert cae.debug_level == DEBUG_LEVEL_DISABLED
+        cae.debug_level = DEBUG_LEVEL_VERBOSE
+        assert cae.debug_level == DEBUG_LEVEL_VERBOSE
+
+    def test_show_help(self, restore_app_env):
+        cae = ConsoleApp('test_show_help')
+        cae.show_help()
+
+    def test_sys_env_id(self, capsys, restore_app_env, sys_argv_app_key_restore):
+        sei = 'tSt'
+        cae = ConsoleApp('test_sys_env_id', sys_env_id=sei, debug_level=DEBUG_LEVEL_VERBOSE)
+        assert cae.sys_env_id == sei
+        cae.po(sei)     # increase coverage
+        out, err = capsys.readouterr()
+        assert sei in out
+
+        # special case for error code path coverage
+        ca2 = ConsoleApp('test_sys_env_id_COPY')
+        assert ca2.sys_env_id == ''
+        assert not ca2.get_opt('debug_level')
+
+    def test_shutdown_basics(self, restore_app_env):
+        def thr():
+            """ thread """
+            while running:
+                pass
+
+        cae = ConsoleApp('shutdown_basics')
+        cae.shutdown(exit_code=None)
+
+        activate_multi_threading()
+        cae.shutdown(exit_code=None, timeout=0.6)       # tests freezing in debug run without timeout/thread-join
+
+        running = True
+        threading.Thread(target=thr).start()
+        cae.shutdown(exit_code=None, timeout=0.6)
+        running = False
+
+    def test_shutdown_coverage(self, restore_app_env):
+        cae = ConsoleApp('shutdown_coverage')
+        cae.shutdown(exit_code=None, timeout=0.9)
+
+        cae._log_file_index = 1
+        cae.shutdown(exit_code=None, timeout=0.1)
+
+        cae._nul_std_out = open(os.devnull, 'w')
+        cae.shutdown(exit_code=None, timeout=0.1)
+
+    def test_app_instances_reset2(self):
+        assert main_app_instance() is None
+
+
+RETURN_CODE = 123456789
+STDOUT_LINE = b'std___out'
+STDERR_LINE = b'std___err'
+
+
+def subprocess_run_return(*_args, **_kwargs):
+    """ mock to simulate subprocess.run return object. """
+    class _Return:
+        returncode = RETURN_CODE
+        stdout = STDOUT_LINE
+        stderr = STDERR_LINE
+    return _Return()
+
+
+class TestConsoleExecute:
+    @patch.object(subprocess, 'run', autospec=True)
+    def test_sh_exec_args(self, mock_method):
+        cmd_line = "cmd arg1 arg2"
+        extra_args = ['extra_arg1', 'extra_arg2']
+
+        sh_exec(cmd_line, extra_args)
+        mock_method.assert_called_with(
+            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'', check=True)
+
+        sh_exec(cmd_line, extra_args, console_input='con_inp')
+        mock_method.assert_called_with(
+            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'con_inp', check=True)
+
+        sh_exec(cmd_line, extra_args, lines_output=[])
+        mock_method.assert_called_with(
+            cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'', check=True)
+
+        sh_exec(cmd_line, extra_args, console_input='con_inp', lines_output=[])
+        mock_method.assert_called_with(
+            cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'con_inp',
+            check=True)
+
+    @patch.object(subprocess, 'run', new=subprocess_run_return)
+    def test_sh_exec_run_returned_values(self):
+        cmd_line = "cmd arg1 arg2"
+        extra_args = ['extra_arg1', 'extra_arg2']
+        lines_output = []
+
+        assert sh_exec(cmd_line, extra_args, lines_output=lines_output) == RETURN_CODE
+        assert STDOUT_LINE.decode() in lines_output
+        assert STDERR_LINE.decode() in lines_output
+        assert sum("STDERR" in _ for _ in lines_output) == 2
+
+    @patch.object(subprocess, 'run', new_callable=subprocess_run_return)
+    def test_sh_exec_run_exception(self, _return_obj):
+        cmd_line = "cmd arg1 arg2"
+        extra_args = ['extra_arg1', 'extra_arg2']
+        lines_output = []
+        assert sh_exec(cmd_line, extra_args, lines_output=lines_output) == 126     # _Return() is not callable exc
+
+
+# noinspection PyUnusedLocal
 class TestUser:
     def test_load_user_cfg_user_id_from_os(self, restore_app_env, config_fna_vna_vva):
         _file_name, _var_name, _old_var_val = config_fna_vna_vva()
@@ -1097,7 +1152,7 @@ class TestUser:
     def test_load_user_cfg_user_specific_cfg_vars_users_from_cfg(self, restore_app_env, config_fna_vna_vva):
         usr_vars = {(MAIN_SECTION_NAME, 'tst_var')}
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(usr_vars),
-                                                           additional_line=f"registered_users = {dict(usr=dict())!r}")
+                                                           additional_line=f"registered_users = {dict(usr={})!r}")
         cae = ConsoleApp(additional_cfg_files=(file_name, ))
 
         cae.load_user_cfg()
@@ -1203,7 +1258,7 @@ class TestUser:
         usr_id = 'usr_tst_id'
         cae = ConsoleApp()
         cae.user_id = usr_id
-        cae.registered_users = {usr_id: dict()}
+        cae.registered_users = {usr_id: {}}
         cae.user_specific_cfg_vars = {('section', 'var_nam')}
 
         assert cae.user_section('xxx', 'var_nam') == 'xxx'
