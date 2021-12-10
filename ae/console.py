@@ -213,17 +213,17 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Set,
 from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
-from ae.base import (  # type: ignore
+from ae.base import (                                                                       # type: ignore
     CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
     env_str, instantiate_config_parser, norm_name, os_user_name, sys_env_dict, sys_env_text)
-from ae.paths import normalize, Collector, PATH_PLACEHOLDERS            # type: ignore
+from ae.paths import normalize, Collector, PATH_PLACEHOLDERS                                # type: ignore
 # noinspection PyProtectedMember
-from ae.core import (                                                   # type: ignore  # for mypy
+from ae.core import (                                                                       # type: ignore  # for mypy
     DEBUG_LEVEL_DISABLED, DEBUG_LEVELS, main_app_instance, ori_std_out, _LOGGER, AppBase)
-from ae.literal import Literal                                          # type: ignore
+from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.2.61'
+__version__ = '0.2.62'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -281,7 +281,7 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
     if lines_output is not None:
         if run_result.stdout:
             lines_output.extend([line for line in run_result.stdout.decode().split(os.linesep) if line])
-        if run_result.stderr and (not cae or cae.debug):
+        if run_result.stderr:
             lines_output.append("vvvvv STDERR vvvvv")
             lines_output.extend([line for line in run_result.stderr.decode().split(os.linesep) if line])
             lines_output.append("^^^^^ STDERR ^^^^^")
