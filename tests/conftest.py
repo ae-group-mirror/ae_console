@@ -1,6 +1,5 @@
-""" fixtures for this ae namespace portion.
-# THIS FILE IS EXCLUSIVELY MAINTAINED IN THE NAMESPACE ROOT PACKAGE. CHANGES HAVE TO BE DONE THERE.
-"""
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev_tpl_project V0.3.4 
+""" fixtures for to test this project """
 import os
 import sys
 import glob
@@ -8,7 +7,7 @@ import pytest
 
 
 SKIP_EXPRESSION = "'CI_PROJECT_ID' in os.environ"
-skip_gitlab_ci = pytest.mark.skipif(SKIP_EXPRESSION, reason="headless gitlab CI python 3.6 image lacks window system")
+skip_gitlab_ci = pytest.mark.skipif(SKIP_EXPRESSION, reason="incomplete development environment and headless gitlab CI")
 
 
 @pytest.fixture
