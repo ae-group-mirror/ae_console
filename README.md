@@ -1,12 +1,12 @@
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae V0.2.85 -->
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev_tpl_namespace_root V0.3.6 -->
-# console 0.3.62
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae V0.3.88 -->
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.tpl_namespace_root V0.3.10 -->
+# console 0.3.63
 
 [![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_console/develop?logo=python)](
     https://gitlab.com/ae-group/ae_console)
 [![LatestPyPIrelease](
-    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.2.62?logo=python)](
-    https://gitlab.com/ae-group/ae_console/-/tree/release0.2.62)
+    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.62?logo=python)](
+    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.62)
 [![PyPIVersions](https://img.shields.io/pypi/v/ae_console)](
     https://pypi.org/project/ae-console/#history)
 
@@ -71,5 +71,5 @@ https://gitlab.com/ae-group/ae_console/-/blob/develop/CONTRIBUTING.rst)
 
 information on the features and usage of this portion are available at
 [ReadTheDocs](
-https://ae.readthedocs.io/en/latest/_autosummary/ae.console.html#module-ae.console
+https://ae.readthedocs.io/en/latest/_autosummary/ae.console.html
 "ae_console documentation").

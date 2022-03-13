@@ -255,7 +255,7 @@ class TestPythonLogging:
         assert cae.py_log_params == var_val
         logging.shutdown()
 
-    def test_logging_params_dict_complex(self, caplog, restore_app_env, sys_argv_app_key_restore):
+    def test_logging_params_dict_complex(self, restore_app_env, sys_argv_app_key_restore):
         log_file = 'test_py_log_complex.log'
         entry_prefix = "TEST LOG ENTRY "
 
@@ -276,88 +276,103 @@ class TestPythonLogging:
 
         assert cae.py_log_params == var_val
 
-        root_logger = logging.getLogger()
+        root_logger = logging.getLogger()   # 'root'
         ae_logger = logging.getLogger('ae')
         ae_cae_logger = logging.getLogger('ae.console')
 
         # ConsoleApp print_out
-        log_text = entry_prefix + "0 print_out"
-        cae.po(log_text)
-        assert caplog.text == ""
+        try:
+            log_text = entry_prefix + "0 print_out"
+            cae.po(log_text)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0] == ""
 
-        log_text = entry_prefix + "0 print_out root"
-        cae.po(log_text, logger=root_logger)
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            log_text = entry_prefix + "0 print_out root"
+            cae.po(log_text, logger=root_logger)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
 
-        log_text = entry_prefix + "0 print_out ae"
-        cae.po(log_text, logger=ae_logger)
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            log_text = entry_prefix + "0 print_out ae"
+            cae.po(log_text, logger=ae_logger)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
 
-        log_text = entry_prefix + "0 print_out ae_cae"
-        cae.po(log_text, logger=ae_cae_logger)
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            log_text = entry_prefix + "0 print_out ae_cae"
+            cae.po(log_text, logger=ae_cae_logger)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[-1].endswith(log_text + os.linesep)
 
         # logging
-        logging.info(entry_prefix + "1 info")       # will NOT be added to log
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            logging.info(entry_prefix + "1 info")       # will NOT be added to log
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file) == 0
 
-        logging.debug(entry_prefix + "2 debug")     # NOT logged
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            logging.debug(entry_prefix + "2 debug")     # NOT logged
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file) == 0
 
-        log_text = entry_prefix + "3 warning"
-        logging.warning(log_text)                   # NOT logged
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            log_text = entry_prefix + "3 warning"
+            logging.warning(log_text)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
 
-        log_text = entry_prefix + "4 error logging"
-        logging.error(log_text)
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            log_text = entry_prefix + "4 error logging"
+            logging.error(log_text)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
 
         # loggers
-        log_text = entry_prefix + "4 error root"
-        root_logger.error(log_text)
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            log_text = entry_prefix + "4 error root"
+            root_logger.error(log_text)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
 
-        log_text = entry_prefix + "4 error ae"
-        ae_logger.error(log_text)
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            log_text = entry_prefix + "4 error ae"
+            ae_logger.error(log_text)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
 
-        log_text = entry_prefix + "4 error ae_cae"
-        ae_cae_logger.error(log_text)
-        assert caplog.text.endswith(log_text + "\n")
+        try:
+            log_text = entry_prefix + "4 error ae_cae"
+            ae_cae_logger.error(log_text)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
 
         # ConsoleAppEnv dpo
         sys.argv = ['tl_cdc']  # sys.argv has to be set to allow get_option('debug_level') calls done by debug_out()
-        new_log_text = entry_prefix + "5 dpo"
-        cae.dpo(new_log_text, minimum_debug_level=DEBUG_LEVEL_DISABLED)
-        assert caplog.text.endswith(log_text + "\n")
-        cae.dpo(new_log_text, minimum_debug_level=DEBUG_LEVEL_DISABLED, logger=ae_cae_logger)
-        assert caplog.text.endswith(new_log_text + "\n")
+        try:
+            log_text = entry_prefix + "5 not logged dpo"
+            cae.dpo(log_text, minimum_debug_level=DEBUG_LEVEL_DISABLED)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file) == 0
 
-        # final checks of log file contents
-        logging.shutdown()
-        '''
-        # .. logging.shutdown seems to do no flushing when run in combination with pytest within PyCharm
-        if False and root_logger.handlers:
-            root_logger.handlers[0].flush()
-        else:
-            [h_weak_ref().flush() for h_weak_ref in logging._handlerList]
-            # or easier but less secure: [h.flush() for h in root_logger.handlerList]
-        # .. even time.sleep(3..390) doesn't help
-        # .. also tried:
-        #         caplog.clear()
-        #         caplog.handler.close()
-        '''
-        file_contents = delete_files(log_file, ret_type='contents')
-        assert len(file_contents) >= 8
-        for fc in file_contents:
-            if fc.startswith("{TST}"):
-                fc = fc[6:]  # remove sys_env_id prefix
-            if fc.startswith("<"):
-                fc = fc[fc.index("> ") + 2:]  # remove thread id prefix
-            assert fc.startswith(entry_prefix) or fc.startswith('####  ') or fc.startswith('Ignorable ') or fc == ''
-            #    or fc.startswith('_jb_pytest_runner ') or fc.startswith(tst_app_key) \
-            #    or fc.lower().startswith('test  v 0.0') or fc.startswith('  **  Additional instance')
-            assert "1 info" not in fc and "2 debug" not in fc and "3 warning" not in fc
+        try:
+            log_text = entry_prefix + "5 dpo"
+            cae.dpo(log_text, minimum_debug_level=DEBUG_LEVEL_DISABLED, logger=ae_cae_logger)
+        finally:
+            logging.shutdown()
+            assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
 
     def test_app_instances_reset2(self):
         assert main_app_instance() is None
@@ -424,7 +439,7 @@ class TestConfigOptions:
         sys.argv = ['test', '-t=' + opt_test_val]
 
         cae = ConsoleApp('test_set_var_basics')
-        cae.add_opt(var_name, 'test_config_basics', 'init_test_val', short_opt='')
+        cae.add_opt(var_name, 'test_config_basics', 'init_test_val')
         assert cae.get_opt(var_name) == opt_test_val
 
         val = 'test_value'
@@ -923,7 +938,7 @@ class TestConsoleAppBasics:
         opt_name = 'test_opt'
         opt_val = 'test_opt_value'
         assert cae.get_option(opt_name) is None
-        cae.add_opt(opt_name, 'test_opt_description', opt_val, short_opt='')
+        cae.add_opt(opt_name, 'test_opt_description', opt_val)
         assert cae.get_option(opt_name) == opt_val
 
     def test_set_opt(self, restore_app_env, sys_argv_app_key_restore):
@@ -1026,20 +1041,21 @@ class TestConsoleExecute:
 
         sh_exec(cmd_line, extra_args)
         mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'', check=True)
+            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'', check=True, shell=False)
 
         sh_exec(cmd_line, extra_args, console_input='con_inp')
         mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'con_inp', check=True)
+            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'con_inp', check=True, shell=False)
 
         sh_exec(cmd_line, extra_args, lines_output=[])
         mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'', check=True)
+            cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'', check=True,
+            shell=False)
 
         sh_exec(cmd_line, extra_args, console_input='con_inp', lines_output=[])
         mock_method.assert_called_with(
             cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'con_inp',
-            check=True)
+            check=True, shell=False)
 
     @patch.object(subprocess, 'run', new=subprocess_run_return)
     def test_sh_exec_run_returned_values(self):
@@ -1229,7 +1245,7 @@ class TestUser:
         assert 'additional_user_data' in cae.registered_users[os_usr_id]
         assert cae.registered_users[os_usr_id]['user_name'] == usr_name
 
-        # test creation of new user with same/duplicate user name
+        # test creation of new user with same/duplicate username
         cae.user_id = new_usr_id
         cae.register_user(user_name=usr_name)
         assert len(cae.registered_users) == 2
