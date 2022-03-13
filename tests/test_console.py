@@ -424,7 +424,7 @@ class TestConfigOptions:
         sys.argv = ['test', '-t=' + opt_test_val]
 
         cae = ConsoleApp('test_set_var_basics')
-        cae.add_opt(var_name, 'test_config_basics', 'init_test_val', short_opt='')
+        cae.add_opt(var_name, 'test_config_basics', 'init_test_val')
         assert cae.get_opt(var_name) == opt_test_val
 
         val = 'test_value'
@@ -923,7 +923,7 @@ class TestConsoleAppBasics:
         opt_name = 'test_opt'
         opt_val = 'test_opt_value'
         assert cae.get_option(opt_name) is None
-        cae.add_opt(opt_name, 'test_opt_description', opt_val, short_opt='')
+        cae.add_opt(opt_name, 'test_opt_description', opt_val)
         assert cae.get_option(opt_name) == opt_val
 
     def test_set_opt(self, restore_app_env, sys_argv_app_key_restore):
@@ -1026,7 +1026,7 @@ class TestConsoleExecute:
 
         sh_exec(cmd_line, extra_args)
         mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'', check=True)
+            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'', check=True, shell=False)
 
         sh_exec(cmd_line, extra_args, console_input='con_inp')
         mock_method.assert_called_with(
@@ -1229,7 +1229,7 @@ class TestUser:
         assert 'additional_user_data' in cae.registered_users[os_usr_id]
         assert cae.registered_users[os_usr_id]['user_name'] == usr_name
 
-        # test creation of new user with same/duplicate user name
+        # test creation of new user with same/duplicate username
         cae.user_id = new_usr_id
         cae.register_user(user_name=usr_name)
         assert len(cae.registered_users) == 2

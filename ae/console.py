@@ -223,7 +223,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.62'
+__version__ = '0.3.63'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -251,7 +251,7 @@ def config_value_string(value: Any) -> str:
 
 
 def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "",
-            lines_output: Optional[List[str]] = None, cae: Optional[Any] = None) -> int:
+            lines_output: Optional[List[str]] = None, cae: Optional[Any] = None, shell: bool = False) -> int:
     """ execute command in the current working directory of the OS console/shell.
 
     :param command_line:        command line string to execute on the console/shell. could contain command line args
@@ -261,31 +261,32 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
     :param lines_output:        optional list to return the lines printed to stdout/stderr on execution.
     :param cae:                 optional :class:`~ae.console.ConsoleApp` instance, only used for logging. to suppress
                                 any logging output pass :data:`~ae.base.UNSET`.
+    :param shell:               pass True to execute command in the default OS shell (see :meth:`subprocess.run`).
     :return:                    return code of the executed command or 126 if execution raised any other exception.
     """
-    args = command_line.split() + list(extra_args)
+    args = command_line + " " + " ".join(extra_args) if shell else command_line.split() + list(extra_args)
     print_out = cae.po if cae else print if cae is None else lambda *_, **__: None
     debug_out = cae.dpo if cae else lambda *_, **__: None
     debug_out(f"    # executing at {os.getcwd()}: {args}")
     pipe = None if lines_output is None else subprocess.PIPE
-    run_result: Union[subprocess.CompletedProcess, subprocess.CalledProcessError]   # having: stdout/stderr/returncode
+    result: Union[subprocess.CompletedProcess, subprocess.CalledProcessError]   # having: stdout/stderr/returncode
     try:
-        run_result = subprocess.run(args, stdout=pipe, stderr=pipe, input=console_input.encode(), check=True)
+        result = subprocess.run(args, stdout=pipe, stderr=pipe, input=console_input.encode(), check=True, shell=shell)
     except subprocess.CalledProcessError as ex:                                             # pragma: no cover
         debug_out(f"****  subprocess.run({args}) returned non-zero exit code {ex.returncode}; exception={ex}")
-        run_result = ex
+        result = ex
     except Exception as ex:
         print_out(f"****  subprocess.run({args}) raised exception {ex}")
         return 126
 
     if lines_output is not None:
-        if run_result.stdout:
-            lines_output.extend([line for line in run_result.stdout.decode().split(os.linesep) if line])
-        if run_result.stderr:
-            lines_output.append("vvvvv STDERR vvvvv")
-            lines_output.extend([line for line in run_result.stderr.decode().split(os.linesep) if line])
-            lines_output.append("^^^^^ STDERR ^^^^^")
-    return run_result.returncode
+        if result.stdout:
+            lines_output.extend([line for line in result.stdout.decode().split(os.linesep) if line])
+        if result.stderr:
+            lines_output.append("vvv   STDERR   vvv")
+            lines_output.extend([line for line in result.stderr.decode().split(os.linesep) if line])
+            lines_output.append("^^^   STDERR   ^^^")
+    return result.returncode
 
 
 class ConsoleApp(AppBase):
@@ -448,7 +449,7 @@ class ConsoleApp(AppBase):
                                     or empty string if no logging got configured in cfg/args.
 
         the logging configuration can be specified in several alternative places. the precedence
-        on various existing configurations is (highest precedence first):
+        on various existing configurations is (the highest precedence first):
 
         * :ref:`log_file  <pre-defined-config-options>` :ref:`configuration option <config-options>` specifies
           the name of the used ae log file (will be read after initialisation of this app instance)
@@ -480,7 +481,7 @@ class ConsoleApp(AppBase):
                 log_file_name = self.get_var('log_file', default_value=logging_params.get('log_file_name'))
                 logging_params['log_file_name'] = log_file_name             # .. finally cfg log_file / log file arg
 
-        if logging_params.get('log_file_name'):                             # replace placeholders if has log file path
+        if logging_params.get('log_file_name'):                             # if log file path: replace placeholders
             logging_params['log_file_name'] = normalize(logging_params['log_file_name'])
 
         super().init_logging(**logging_params)
@@ -621,7 +622,7 @@ class ConsoleApp(AppBase):
                      cfg_parser: Optional[ConfigParser] = None, value_type: Optional[Type] = None) -> Any:
         """ determine value of a :ref:`config option <config-options>` or a :ref:`config variable <config-variables>`.
 
-        :param name:            id/name of a :ref:`config option <config-options>` or the name of a existing/declared
+        :param name:            id/name of a :ref:`config option <config-options>` or the name of an existing/declared
                                 :ref:`config variable <config-variables>`.
         :param section:         name of the :ref:`config section <config-sections>`. defaulting to the app options
                                 section (:data:`MAIN_SECTION_NAME`) if not specified or if None or empty string passed.
@@ -780,6 +781,7 @@ class ConsoleApp(AppBase):
         args = []
         if short_opt and len(short_opt) == 1:
             short_opt = '-' + short_opt
+            # noinspection PyProtectedMember
             assert short_opt not in self._arg_parser._option_string_actions, f"short_opt {short_opt} already exists"
             args.append(short_opt)
         args.append('--' + name)
@@ -813,7 +815,7 @@ class ConsoleApp(AppBase):
             self.debug_level = value
 
     def get_option(self, name: str, default_value: Optional[Any] = None) -> Any:
-        """ determine the value of a config option specified by it's name (option id).
+        """ determine the value of a config option specified by its name (option id).
 
         :param name:            name/id of the config option.
         :param default_value:   default value of the option (if not defined with :class:`~ConsoleApp.add_option`).
