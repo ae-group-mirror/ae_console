@@ -307,7 +307,10 @@ class TestPythonLogging:
             cae.po(log_text, logger=ae_cae_logger)
         finally:
             logging.shutdown()
-            assert delete_files(log_file, ret_type='contents')[-1].endswith(log_text + os.linesep)
+            # multiple log files because log text has 34 bytes but RotatingFileHandler maxbytes is 33
+            files_contents = delete_files(log_file, ret_type='contents')
+            assert len(files_contents) > 1
+            assert any(_.endswith(log_text + os.linesep) for _ in files_contents)
 
         # logging
         try:
