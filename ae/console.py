@@ -206,6 +206,7 @@ revoke which config variables the app is storing individually for each user.
 """
 import os
 import datetime
+import shlex
 import subprocess
 import threading
 
@@ -223,7 +224,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.63'
+__version__ = '0.3.64'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -264,7 +265,8 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
     :param shell:               pass True to execute command in the default OS shell (see :meth:`subprocess.run`).
     :return:                    return code of the executed command or 126 if execution raised any other exception.
     """
-    args = command_line + " " + " ".join(extra_args) if shell else command_line.split() + list(extra_args)
+    # args = command_line + " " + " ".join(extra_args) if shell else command_line.split() + list(extra_args)
+    args = command_line + " " + " ".join(extra_args) if shell else shlex.split(command_line) + list(extra_args)
     print_out = cae.po if cae else print if cae is None else lambda *_, **__: None
     debug_out = cae.dpo if cae else lambda *_, **__: None
     debug_out(f"    # executing at {os.getcwd()}: {args}")
