@@ -13,6 +13,7 @@
       <w>fset</w>
       <w>getcwd</w>
       <w>kivy</w>
+      <w>maxbytes</w>
       <w>meth</w>
       <w>mypy</w>
       <w>paramref</w>
