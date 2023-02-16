@@ -224,7 +224,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.64'
+__version__ = '0.3.65'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -379,6 +379,7 @@ class ConsoleApp(AppBase):
                                         supported kwargs are all the method kwargs of
                                         :meth:`~.core.AppBase.init_logging`.
         """
+        self._user_id = ''
         if not sys_env_id:
             sys_env_id = env_str(MAIN_SECTION_NAME + '_sys_env_id', convert_name=True) or ''
 
@@ -409,7 +410,6 @@ class ConsoleApp(AppBase):
         self.load_cfg_files()
 
         self.registered_users: Dict[str, Dict[str, Any]] = {}
-        self._user_id = ''
         self.user_specific_cfg_vars: Set[Tuple[str, str]] = set()
         self._init_default_user_cfg_vars()
         self.load_user_cfg()
