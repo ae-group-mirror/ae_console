@@ -216,7 +216,7 @@ from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 from ae.base import (                                                                       # type: ignore
     CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
-    env_str, instantiate_config_parser, norm_name, os_user_name, sys_env_dict, sys_env_text)
+    dummy_function, env_str, instantiate_config_parser, norm_name, os_user_name, sys_env_dict, sys_env_text)
 from ae.paths import normalize, Collector, PATH_PLACEHOLDERS                                # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                                       # type: ignore  # for mypy
@@ -224,7 +224,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.65'
+__version__ = '0.3.66'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -267,8 +267,8 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
     """
     # args = command_line + " " + " ".join(extra_args) if shell else command_line.split() + list(extra_args)
     args = command_line + " " + " ".join(extra_args) if shell else shlex.split(command_line) + list(extra_args)
-    print_out = cae.po if cae else print if cae is None else lambda *_, **__: None
-    debug_out = cae.dpo if cae else lambda *_, **__: None
+    print_out = cae.po if cae else print if cae is None else dummy_function
+    debug_out = cae.dpo if cae else dummy_function
     debug_out(f"    # executing at {os.getcwd()}: {args}")
     pipe = None if lines_output is None else subprocess.PIPE
     result: Union[subprocess.CompletedProcess, subprocess.CalledProcessError]   # having: stdout/stderr/returncode
