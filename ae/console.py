@@ -150,6 +150,7 @@ the following config variables are pre-defined in the :ref:`main config section 
   environment variable with the name `AE_OPTIONS_LOG_FILE` to overwrite the value of the
   :ref:`pre-defined config option/variable <pre-defined-config-options>` `log_file`.
 
+
 .. _config-options:
 
 config options
@@ -224,13 +225,12 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.66'
+__version__ = '0.3.67'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
 
-# lock to prevent errors in config var value changes and reloads/reads
-config_lock = threading.RLock()
+config_lock = threading.RLock()                 # lock to prevent errors in config var value changes and reloads/reads
 
 
 def config_value_string(value: Any) -> str:
@@ -622,9 +622,9 @@ class ConsoleApp(AppBase):
 
     def get_variable(self, name: str, section: Optional[str] = None, default_value: Optional[Any] = None,
                      cfg_parser: Optional[ConfigParser] = None, value_type: Optional[Type] = None) -> Any:
-        """ determine value of a :ref:`config option <config-options>` or a :ref:`config variable <config-variables>`.
+        """ get value of :ref:`config option <config-options>`, OS environ or :ref:`config variable <config-variables>`.
 
-        :param name:            id/name of a :ref:`config option <config-options>` or the name of an existing/declared
+        :param name:            name of a :ref:`config option <config-options>` or of an existing/declared
                                 :ref:`config variable <config-variables>`.
         :param section:         name of the :ref:`config section <config-sections>`. defaulting to the app options
                                 section (:data:`MAIN_SECTION_NAME`) if not specified or if None or empty string passed.
@@ -632,14 +632,15 @@ class ConsoleApp(AppBase):
         :param cfg_parser:      optional ConfigParser instance to use (def= :attr:`~ConsoleApp._cfg_parser`).
         :param value_type:      optional type of the config value. only used for :ref:`config-variables` and
                                 ignored for :ref:`config-options`.
-        :return:                variable value which will be searched in the OS environment, the :ref:`config-options`
+        :return:                variable value which will be searched in the :ref:`config-options`, the OS environment
                                 and in the :ref:`config-variables` in the following order and manner:
 
+                                * **config option** with a name equal to the :paramref:`~get_variable.name` argument
+                                  (only if the passed :paramref:`~get_variable.section` value is either empty,
+                                  None or equal to the argument default value of :data:`MAIN_SECTION_NAME`).
                                 * **OS environment variable** with a matching snake+upper-cased name, compiled from
-                                  the :paramref:`~get_variable.section` and :paramref:`~get_variable.name` arguments.
-                                * **config option** with an id equal to the :paramref:`~get_variable.name` argument
-                                  and with a passed :paramref:`~get_variable.section` value that is either empty,
-                                  None or equal to the value of :data:`MAIN_SECTION_NAME`.
+                                  the :paramref:`~get_variable.section` and :paramref:`~get_variable.name` arguments,
+                                  separated by an underscore character.
                                 * **config variable** with a name and section equal to the values passed into
                                   the :paramref:`~get_variable.name` and :paramref:`~get_variable.section` arguments.
 
@@ -648,11 +649,11 @@ class ConsoleApp(AppBase):
         this method has an alias named :meth:`get_var`.
         """
         section = section or MAIN_SECTION_NAME
-        val = env_str(section + '_' + name, convert_name=True)
-        if val is None:
-            if name in self.cfg_options and section == MAIN_SECTION_NAME:
-                val = self.cfg_options[name].value
-            else:
+        if name in self.cfg_options and section == MAIN_SECTION_NAME:
+            val = self.cfg_options[name].value
+        else:
+            val = env_str(section + '_' + name, convert_name=True)
+            if val is None:
                 lit = Literal(literal_or_value=default_value, value_type=value_type, name=name)  # used for convert/eval
                 lit.value = self._get_cfg_parser_val(name, section=self.user_section(section, name),
                                                      default_value=lit.value, cfg_parser=cfg_parser)
