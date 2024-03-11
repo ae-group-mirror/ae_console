@@ -225,7 +225,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.68'
+__version__ = '0.3.69'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -637,7 +637,7 @@ class ConsoleApp(AppBase):
 
                                 * **config option** with a name equal to the :paramref:`~get_variable.name` argument
                                   (only if the passed :paramref:`~get_variable.section` value is either empty,
-                                  None or equal to the argument default value of :data:`MAIN_SECTION_NAME`).
+                                  None or equal to :data:`MAIN_SECTION_NAME`).
                                 * **OS environment variable** with a matching snake+upper-cased name, compiled from
                                   the :paramref:`~get_variable.section` and :paramref:`~get_variable.name` arguments,
                                   separated by an underscore character.

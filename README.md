@@ -1,12 +1,12 @@
 <!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae V0.3.92 -->
 <!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.tpl_namespace_root V0.3.13 -->
-# console 0.3.68
+# console 0.3.69
 
 [![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_console/develop?logo=python)](
     https://gitlab.com/ae-group/ae_console)
 [![LatestPyPIrelease](
-    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.66?logo=python)](
-    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.66)
+    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.68?logo=python)](
+    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.68)
 [![PyPIVersions](https://img.shields.io/pypi/v/ae_console)](
     https://pypi.org/project/ae-console/#history)
 
