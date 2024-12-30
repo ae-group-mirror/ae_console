@@ -225,7 +225,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.69'
+__version__ = '0.3.70'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -275,7 +275,7 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
     try:
         result = subprocess.run(args, stdout=pipe, stderr=pipe, input=console_input.encode(), check=True, shell=shell)
     except subprocess.CalledProcessError as ex:                                             # pragma: no cover
-        debug_out(f"****  subprocess.run({args}) returned non-zero exit code {ex.returncode}; exception={ex}")
+        debug_out(f"****  subprocess.run({args=}) returned non-zero exit code {ex.returncode}; {ex=}")
         result = ex
     except Exception as ex:
         print_out(f"****  subprocess.run({args}) raised exception {ex}")
@@ -628,6 +628,9 @@ class ConsoleApp(AppBase):
                                 :ref:`config variable <config-variables>`.
         :param section:         name of the :ref:`config section <config-sections>`. defaulting to the app options
                                 section (:data:`MAIN_SECTION_NAME`) if not specified or if None or empty string passed.
+                                if :paramref:`~get_variable.name` specifies a user-specific config option then its
+                                value will get retrieved from the user-specific section (section name gets then
+                                extended with help of the :meth:`.user_section` method).
         :param default_value:   default value to return if config value is not specified in any config file.
         :param cfg_parser:      optional ConfigParser instance to use (def= :attr:`~ConsoleApp._cfg_parser`).
         :param value_type:      optional type of the config value. only used for :ref:`config-variables` and
@@ -684,7 +687,7 @@ class ConsoleApp(AppBase):
 
         this method has an alias named :meth:`set_var`.
         """
-        msg = f"****  ConsoleApp.set_var({name!r}, {value!r}) "
+        msg = f"****  ConsoleApp.set_variable({name=!r}, {value=!r}) "
         cfg_fnam = cfg_fnam or self._main_cfg_fnam
         section = section or MAIN_SECTION_NAME
         if name in self.cfg_options and section == MAIN_SECTION_NAME:
@@ -792,7 +795,7 @@ class ConsoleApp(AppBase):
         # determine config value to use as default for command line arg
         option = Literal(literal_or_value=False if value is UNSET else value, name=name)
         # alt: cfg_val = self._get_cfg_parser_val(name, self.user_section(MAIN_SECTION_NAME, name), default_value=value)
-        cfg_val = self.get_var(name, section=MAIN_SECTION_NAME, default_value=False if value is UNSET else value)
+        cfg_val = self.get_variable(name, section=MAIN_SECTION_NAME, default_value=False if value is UNSET else value)
         option.value = cfg_val
         kwargs = dict(help=desc, default=cfg_val)
         if value is UNSET:
@@ -978,14 +981,15 @@ class ConsoleApp(AppBase):
             self.set_var(var_name + '_' + user_id, self.get_var(var_name, default_value=-3))
             self.set_var(var_name, 0)  # reset onboarding tour start counter cfg var for other, non-registered OS users
 
-    def user_section(self, section: str, name: str) -> str:
+    def user_section(self, section: str, name: str = "") -> str:
         """ return the user section name if the passed (section, name) setting id is user-specific.
 
         :param section:         section name.
-        :param name:            variable name.
+        :param name:            config variable name. if specified then this variable has to be a user-specific one.
+                                if not specified and the user is registered then return always the user section.
         :return:                passed section name or user-specific section name.
         """
-        if self.user_id in self.registered_users and (section, name) in self.user_specific_cfg_vars:
+        if self.user_id in self.registered_users and (not name or (section, name) in self.user_specific_cfg_vars):
             section = section + '_usr_id_' + self.user_id
         return section
 
