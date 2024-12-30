@@ -1283,3 +1283,4 @@ class TestUser:
         assert cae.user_section('xxx', 'var_nam') == 'xxx'
         assert cae.user_section('section', 'yyy_var_nam') == 'section'
         assert cae.user_section('section', 'var_nam') == 'section' + '_usr_id_' + usr_id
+        assert cae.user_section('section') == 'section' + '_usr_id_' + usr_id
