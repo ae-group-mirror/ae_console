@@ -225,7 +225,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.70'
+__version__ = '0.3.71'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -723,6 +723,36 @@ class ConsoleApp(AppBase):
         return err_msg
 
     set_var = set_variable  #: alias of method :meth:`.set_variable`
+
+    def del_section(self, section: str, cfg_fnam: Optional[str] = None):
+        """ delete section from the main or the specified config file.
+
+        :param section:         name of the :ref:`config section <config-sections>` to delete/remove.
+        :param cfg_fnam:        optional path/name of the config file (def= :attr:`~ConsoleApp._main_cfg_fnam`).
+        :return:                empty string on success else error message text.
+        """
+        msg = f"****  ConsoleApp.del_section({section=}, {cfg_fnam=}) "
+        cfg_fnam = cfg_fnam or self._main_cfg_fnam
+        if not cfg_fnam or not os.path.isfile(cfg_fnam):
+            return msg + f"INI/CFG file {cfg_fnam} not found."
+
+        err_msg = ''
+        with config_lock:
+            try:
+                cfg_parser = instantiate_config_parser()
+                cfg_parser.read(cfg_fnam)
+
+                assert cfg_parser.remove_section(section), f"{section=} not found in {cfg_fnam=}"
+
+                with open(cfg_fnam, 'w') as configfile:
+                    cfg_parser.write(configfile)
+                self.load_cfg_files(config_modified=False)
+                self.load_user_cfg()
+
+            except Exception as ex:
+                err_msg = msg + f"exception: {ex}"
+
+        return err_msg
 
     def add_argument(self, *args, **kwargs):
         """ define new command line argument.
