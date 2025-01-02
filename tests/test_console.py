@@ -192,7 +192,7 @@ class TestAeLogging:
             sub_thread = threading.Thread(target=sub_app_po)
             sub_thread.start()
             while not sub_printed:      # NOT ENOUGH - failing on gitlab ci with: not sub or not sub.active_log_stream:
-                pass  # wait until sub-thread has called init_logging()
+                pass                    # wait until sub-thread has called init_logging()
             po(mp + tst_out + "_1")
             app.po(mp + tst_out + "_2")
             assert isinstance(sub, SubApp)
@@ -391,6 +391,40 @@ class TestConfigOptions:
     def test_app_instances_reset1(self):
         assert main_app_instance() is None
 
+    def test_del_section(self, config_fna_vna_vva, restore_app_env):
+        file_name, var_name, _ = config_fna_vna_vva()
+        cae = ConsoleApp('test_del_section', additional_cfg_files=[file_name])
+        val = 'any_tst_val'
+        section_name = 'tstSection'
+        assert cae.set_var(var_name, val, cfg_fnam=file_name, section=section_name) == ""
+        assert val == cae.get_var(var_name, section=section_name)
+
+        assert cae.del_section(section_name, cfg_fnam=file_name) == ""
+
+        assert cae.get_var(var_name, section=section_name) is None
+
+    def test_del_section_not_exists(self, config_fna_vna_vva, restore_app_env):
+        file_name, var_name, _ = config_fna_vna_vva()
+        cae = ConsoleApp('test_del_section_not_exists', additional_cfg_files=[file_name])
+        section_name = 'tstNotExistingSection'
+        assert cae.get_var(var_name, section=section_name) is None
+
+        err_msg = cae.del_section(section_name, cfg_fnam=file_name)
+
+        assert file_name in err_msg
+        assert section_name in err_msg
+
+    def test_del_section_no_file(self, cons_app):
+        cae = cons_app
+        section_name = 'not_existing_section'
+        fil_nam = 'no_existing_file'
+
+        err_msg = cae.del_section(section_name, cfg_fnam=fil_nam)
+
+        assert "del_section" in err_msg
+        assert section_name in err_msg
+        assert fil_nam in err_msg
+
     def test_get_var_basics(self, cons_app):
         cae = cons_app
         assert cae.get_var('debug_level') == DEBUG_LEVEL_DISABLED
@@ -427,8 +461,8 @@ class TestConfigOptions:
         assert cae.get_var(var_name) == usr_value                       # usr variable overwrite cwd variable
 
         app_path = normalize("{ado}")
-        if not os.path.exists(app_path):
-            os.mkdir(app_path)  # will not be removed after test run!
+        # if not os.path.exists(app_path):
+        #    os.mkdir(app_path)  # will not be removed after test run!
         app_file, _, app_value = config_fna_vna_vva(file_name='{ado}/test' + INI_EXT, var_value='ado')
         assert app_file != cwd_file and app_file != usr_file
         cae.add_cfg_files()
