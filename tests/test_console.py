@@ -18,7 +18,7 @@ from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name,
 from ae.paths import normalize
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, po, SubApp)
-from ae.console import MAIN_SECTION_NAME, ConsoleApp, config_value_string, sh_exec
+from ae.console import MAIN_SECTION_NAME, USER_NAME_MAX_LEN, ConsoleApp, config_value_string, sh_exec
 
 
 @pytest.fixture
@@ -1178,19 +1178,20 @@ class TestUser:
     def test_load_user_cfg_registered_users_not_configured(self, restore_app_env):
         cae = ConsoleApp()
         assert not cae.registered_users
-        assert isinstance(cae.registered_users, dict)
+        assert isinstance(cae.registered_users, list)
 
         cae.load_user_cfg()
+
         assert not cae.registered_users
-        assert isinstance(cae.registered_users, dict)
+        assert isinstance(cae.registered_users, list)
 
     def test_load_user_cfg_registered_users_from_cfg(self, restore_app_env, config_fna_vna_vva):
-        usr_id, usr_name = 'usr_id', 'usr_name'
-        reg_users = {usr_id: dict(user_name=usr_name)}
+        reg_users = ['user_ai_di']
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='registered_users', var_value=repr(reg_users))
         cae = ConsoleApp(additional_cfg_files=(file_name, ))
 
         cae.load_user_cfg()
+
         assert cae.registered_users == reg_users
 
     def test_load_user_cfg_user_specific_cfg_vars_not_configured(self, restore_app_env):
@@ -1211,21 +1212,16 @@ class TestUser:
         cae.load_user_cfg()
         assert cae.user_specific_cfg_vars == usr_vars
 
-    def test_load_user_cfg_user_specific_cfg_vars_users_from_user_data(self, restore_app_env, config_fna_vna_vva):
-        def_vars = {(MAIN_SECTION_NAME, 'tst_var1')}
-        usr_vars = {(MAIN_SECTION_NAME, 'tst_var2')}
-        usr_id = 'usr_id'
-        reg_users = {usr_id: dict(user_specific_cfg_vars=usr_vars)}
-        file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(def_vars),
-                                                           additional_line=f"registered_users = {reg_users!r}")
+    def test_load_user_cfg_userz_registered(self, restore_app_env, config_fna_vna_vva):
+        reg_users = ['usr_id']
+        file_name, _var_name, var_val = config_fna_vna_vva(additional_line=f"registered_users = {reg_users!r}")
         cae = ConsoleApp(additional_cfg_files=(file_name, ))
+        assert len(cae.registered_users) == 1
 
         cae.load_user_cfg()
-        assert cae.user_specific_cfg_vars == def_vars
 
-        cae.user_id = usr_id
-        cae.load_user_cfg()
-        assert cae.user_specific_cfg_vars == usr_vars
+        assert len(cae.registered_users) == 1
+        assert cae.registered_users == reg_users
 
     def test_register_user(self, restore_app_env, config_fna_vna_vva):
         usr_var_name = 'tst_usr_var'
@@ -1237,29 +1233,26 @@ class TestUser:
         cae._main_cfg_fnam = file_name
         cae._cfg_files.append(file_name)
         cae.load_cfg_files()
-        cae.load_user_cfg()
+        cae.load_user_cfg()     # load cfg/usr manually: therefore no ConsoleApp(additional_cfg_files=(file_name, ))
 
         os_usr_id = cae.user_id
         new_usr_id = 'new_usr_id'
-        aud = 'additional_usr_data'
 
-        assert not cae.registered_users
-
+        assert isinstance(cae.registered_users, list)
+        assert len(cae.registered_users) == 0
         assert cae.user_id == os_usr_id
+
         cae.user_id = new_usr_id
         assert cae.get_var(usr_var_name) == usr_var_val
         cae.user_id = os_usr_id
         assert cae.get_var(usr_var_name) == usr_var_val
 
-        cae.register_user(additional_user_data=aud)
+        cae.register_user()     # == cae.register_user(new_user_id=os_usr_id, set_as_default=True)
 
         assert len(cae.registered_users) == 1
         assert os_usr_id in cae.registered_users
-        assert isinstance(cae.registered_users[os_usr_id], dict)
-        assert cae.registered_users[os_usr_id]['additional_user_data'] == aud
-        assert cae.registered_users[os_usr_id]['user_name'] == os_usr_id
-
         assert cae.user_id == os_usr_id
+
         cae.user_id = new_usr_id
         assert cae.get_var(usr_var_name) == usr_var_val
         cae.user_id = os_usr_id
@@ -1273,31 +1266,40 @@ class TestUser:
         cae.user_id = os_usr_id
         assert cae.get_var(usr_var_name) == os_usr_chg_val
 
-        # test overwriting user data via re-registration
-        usr_name = 'usr_nam'
-        cae.register_user(user_name=usr_name)
+        # test user data on re-registration get untouched
+        cae.register_user(new_user_id=os_usr_id)
+        assert cae.get_var(usr_var_name) == os_usr_chg_val
         assert len(cae.registered_users) == 1
         assert os_usr_id in cae.registered_users
-        assert isinstance(cae.registered_users[os_usr_id], dict)
-        assert 'additional_user_data' in cae.registered_users[os_usr_id]
-        assert cae.registered_users[os_usr_id]['user_name'] == usr_name
+        # .. until reset_cfg_vars get specified
+        cae.register_user(new_user_id=os_usr_id, reset_cfg_vars=True)
+        assert cae.get_var(usr_var_name) == usr_var_val
 
-        # test creation of new user with same/duplicate username
-        cae.user_id = new_usr_id
-        cae.register_user(user_name=usr_name)
+        cae.register_user(new_user_id=new_usr_id, set_as_default=False)
         assert len(cae.registered_users) == 2
         assert new_usr_id in cae.registered_users
-        assert isinstance(cae.registered_users[new_usr_id], dict)
-        assert 'additional_user_data' not in cae.registered_users[new_usr_id]
-        assert cae.registered_users[os_usr_id]['user_name'] == usr_name
-        assert cae.registered_users[new_usr_id]['user_name'] == usr_name
+        assert cae.user_id == os_usr_id
 
-    def test_register_user_empty_id(self, restore_app_env):
+        cae.register_user(new_user_id=new_usr_id)
+        assert len(cae.registered_users) == 2
+        assert new_usr_id in cae.registered_users
+        assert cae.user_id == new_usr_id
+
+    def test_register_user_empty_or_invalid_id(self, restore_app_env):
         cae = ConsoleApp()
-        cae.user_id = ''
-        cae.register_user()
 
-        assert cae.user_id not in cae.registered_users
+        with pytest.raises(AssertionError):
+            cae.register_user(new_user_id="x y")
+        with pytest.raises(AssertionError):
+            cae.register_user(new_user_id="x-y")
+        with pytest.raises(AssertionError):
+            cae.register_user(new_user_id="xy=")
+        with pytest.raises(AssertionError):
+            cae.register_user(new_user_id="(xy")
+        with pytest.raises(AssertionError):
+            cae.register_user(new_user_id="x" * (USER_NAME_MAX_LEN + 1))
+
+        cae.register_user(new_user_id="x_y")    # only underscore is allowed in user id
 
     def test_set_user_id(self, restore_app_env):
         cae = ConsoleApp()
@@ -1311,7 +1313,7 @@ class TestUser:
         usr_id = 'usr_tst_id'
         cae = ConsoleApp()
         cae.user_id = usr_id
-        cae.registered_users = {usr_id: {}}
+        cae.registered_users = [usr_id]
         cae.user_specific_cfg_vars = {('section', 'var_nam')}
 
         assert cae.user_section('xxx', 'var_nam') == 'xxx'

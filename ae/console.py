@@ -137,10 +137,8 @@ the following config variables are pre-defined in the :ref:`main config section 
 * `logging_params`: :meth:`general ae logging configuration parameters (py and ae logging) <.core.AppBase.init_logging>`
 * `py_logging_params`: `python logging configuration
   <https://docs.python.org/3.6/library/logging.config.html#logging.config.dictConfig>`_
-* `onboarding_tour_started`: count the onboarding tour starts since the installation of the app. will be reset to zero
-  after a user registration (by calling :meth:`~ConsoleApp.register_user`)
-* `registered_users`: users registered with their OS user name as user id (see :meth:`~ConsoleApp.register_user`)
-* `user_id`: id of the app user (default is determined from the `system user name <ae.base.os_user_name>`)
+* `registered_users`: list of registered user names/ids (extended by calls of :meth:`ConsoleApp.register_user` method)
+* `user_id`: id of the app user (default is the `operating system user name <ae.base.os_user_name>`)
 * `user_specific_cfg_vars`: list of config variables storing an individual value for each registered user (see
   section :ref:`user-specific-config-variables`)
 
@@ -225,10 +223,12 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.71'
+__version__ = '0.3.72'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
+
+USER_NAME_MAX_LEN = 12                          #: maximum length of a `username/id <ae.console.ConsoleApp.user_id>`
 
 config_lock = threading.RLock()                 # lock to prevent errors in config var value changes and reloads/reads
 
@@ -409,7 +409,7 @@ class ConsoleApp(AppBase):
             """
         self.load_cfg_files()
 
-        self.registered_users: Dict[str, Dict[str, Any]] = {}
+        self.registered_users: list[str] = []
         self.user_specific_cfg_vars: Set[Tuple[str, str]] = set()
         self._init_default_user_cfg_vars()
         self.load_user_cfg()
@@ -690,9 +690,10 @@ class ConsoleApp(AppBase):
         msg = f"****  ConsoleApp.set_variable({name=!r}, {value=!r}) "
         cfg_fnam = cfg_fnam or self._main_cfg_fnam
         section = section or MAIN_SECTION_NAME
-        if name in self.cfg_options and section == MAIN_SECTION_NAME:
+        if section == MAIN_SECTION_NAME:
             self._change_option(name, value)
-        section = self.user_section(section, name)
+        if name != 'user_id':
+            section = self.user_section(section, name)
 
         if not cfg_fnam or not os.path.isfile(cfg_fnam):
             return msg + f"INI/CFG file {cfg_fnam} not found." \
@@ -845,10 +846,11 @@ class ConsoleApp(AppBase):
     add_opt = add_option    #: alias of method :meth:`.add_option`
 
     def _change_option(self, name: str, value: Any):
-        """ change config option and any references to it. """
-        self.cfg_options[name].value = value
-        if name == 'debug_level' and self.debug_level != value:
-            self.debug_level = value
+        """ change config option and the instance shortcut|property to the specified value. """
+        if name in self.cfg_options:
+            self.cfg_options[name].value = value
+        if hasattr(self, name) and getattr(self, name) != value:    # name in ('debug_level', 'user_id', ...)
+            setattr(self, name, value)  # self.debug_level = value | self.user_id = value (both are @property!)
 
     def get_option(self, name: str, default_value: Optional[Any] = None) -> Any:
         """ determine the value of a config option specified by its name (option id).
@@ -887,8 +889,10 @@ class ConsoleApp(AppBase):
 
         this method has an alias named :meth:`set_opt`.
         """
+        if save_to_config:
+            return self.set_variable(name, value, cfg_fnam)     # store in config file and call self._change_option()
         self._change_option(name, value)
-        return self.set_var(name, value, cfg_fnam) if save_to_config else ''
+        return ""
 
     set_opt = set_option    #: alias of method :meth:`.set_option`
 
@@ -965,51 +969,45 @@ class ConsoleApp(AppBase):
                     usr_id = self._get_cfg_parser_val('user_id', MAIN_SECTION_NAME, default_value=os_user_name())
                 self.user_id = usr_id
 
-            reg_users = self.get_var('registered_users', default_value={})
-            if reg_users:
-                self.registered_users = reg_users
+            self.registered_users = self.get_var('registered_users', default_value=[])
+            self.user_specific_cfg_vars = self.get_var('user_specific_cfg_vars',
+                                                       default_value=self.user_specific_cfg_vars)
 
-            usr_data = reg_users.get(self.user_id, {})
-            self.user_specific_cfg_vars = usr_data.get('user_specific_cfg_vars',
-                                                       self.get_var('user_specific_cfg_vars',
-                                                                    default_value=self.user_specific_cfg_vars))
+    def register_user(self, new_user_id: str = "", reset_cfg_vars: bool = False, set_as_default: bool = True) -> bool:
+        """ register/reset the specified or current user, creating/copying a new set of user specific config vars.
 
-    def register_user(self, **user_data):
-        """ register the current user and create/copy a new set of user specific config vars.
-
-        :param user_data:       user data dict.
-
-        .. note::
-            this method will overwrite an existing user with the same user id, with the passed user data and the config
-            variable values of the current/default user.
+        :param new_user_id:     username/id to register. if not specified then register current os user (self.user_id).
+        :param reset_cfg_vars:  pass True to reset the user-specific-variables to the default values.
+        :param set_as_default:  pass False to not set the specified user id as default for next app start.
+        :raises AssertionError: if specified/current user id/name is empty, too long or contains invalid characters.
+        :return:                True if the specified or the current os user id/name was not registered, else False.
         """
-        user_id = self.user_id
-        if not user_id:
-            self.po(" ***  skipped registration of current app user with empty user id")
-            return
+        user_id = new_user_id or self.user_id
+        assert user_id, f" ***  cannot register user with empty user name/id; {self.user_id=} {new_user_id=}"
+        assert len(user_id) <= USER_NAME_MAX_LEN, f" ***  user id/name {user_id} too long ({USER_NAME_MAX_LEN=})"
+        inv_chars = "".join(ch for ch in user_id if ch not in norm_name(user_id))
+        assert not inv_chars, f" ***  spaces or invalid characters '{inv_chars}' not allowed in user id/name {user_id}"
 
         registered = user_id in self.registered_users
-        if registered:
-            self.po(f"   #  overwriting registered user {user_id}={self.registered_users[user_id]} with {user_data}")
 
         with config_lock:
-            if registered:
-                self.registered_users[user_id].update(user_data)
-            else:
-                if 'user_name' not in user_data:
-                    user_data['user_name'] = user_id
-                self.registered_users[user_id] = user_data
-            self.set_var('registered_users', self.registered_users)
+            if not registered:
+                self.registered_users.append(user_id)
+                self.set_var('registered_users', self.registered_users)
 
-            for section, var_name in self.user_specific_cfg_vars:
-                self.user_id = ''
-                value = self.get_var(var_name, section)
-                self.user_id = user_id
-                self.set_var(var_name, value, section=section)
+            if not registered or reset_cfg_vars:
+                current_user_id = self.user_id
+                for section, var_name in self.user_specific_cfg_vars:
+                    self.user_id = ''
+                    value = self.get_var(var_name, section)
+                    self.user_id = user_id
+                    self.set_var(var_name, value, section=section)
+                self.user_id = current_user_id
 
-            var_name = 'onboarding_tour_started'
-            self.set_var(var_name + '_' + user_id, self.get_var(var_name, default_value=-3))
-            self.set_var(var_name, 0)  # reset onboarding tour start counter cfg var for other, non-registered OS users
+            if set_as_default:
+                self.set_option('user_id', user_id)  # save to app config file, to be also used/set on next app start
+
+        return not registered
 
     def user_section(self, section: str, name: str = "") -> str:
         """ return the user section name if the passed (section, name) setting id is user-specific.
