@@ -223,12 +223,16 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.72'
+__version__ = '0.3.73'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
 
+STDERR_BEG_MARKER = "vvv   STDERR   vvv"        #: begin of stderr lines in :paramref:`ae.console.sh_exec.lines_output`
+STDERR_END_MARKER = "^^^   STDERR   ^^^"        #: end of stderr lines in :paramref:`ae.console.sh_exec.lines_output`
+
 USER_NAME_MAX_LEN = 12                          #: maximum length of a `username/id <ae.console.ConsoleApp.user_id>`
+
 
 config_lock = threading.RLock()                 # lock to prevent errors in config var value changes and reloads/reads
 
@@ -259,7 +263,10 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
                                 separated by whitespace characters (alternatively use :paramref:`~sh_exec.extra_args`).
     :param extra_args:          optional sequence of extra command line arguments.
     :param console_input:       optional string to be sent to the stdin stream of the console/shell.
-    :param lines_output:        optional list to return the lines printed to stdout/stderr on execution.
+    :param lines_output:        optional list to be exteneded with the lines printed to stdout/stderr on execution.
+                                by passing an empty list the stdout and stderr streams/pipes will be separated,
+                                resulting in having the stderr output lines at the end of the list, enclosed by
+                                the list items :data:`STDERR_BEG_MARKER` and :data:`STDERR_END_MARKER`.
     :param cae:                 optional :class:`~ae.console.ConsoleApp` instance, only used for logging. to suppress
                                 any logging output pass :data:`~ae.base.UNSET`.
     :param shell:               pass True to execute command in the default OS shell (see :meth:`subprocess.run`).
@@ -267,13 +274,20 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
     """
     # args = command_line + " " + " ".join(extra_args) if shell else command_line.split() + list(extra_args)
     args = command_line + " " + " ".join(extra_args) if shell else shlex.split(command_line) + list(extra_args)
+    ret_out = lines_output is not None  # == isinstance(lines_output, list)
+    merge_err = bool(lines_output)      # == -''- and len(lines_output) > 0
     print_out = cae.po if cae else print if cae is None else dummy_function
     debug_out = cae.dpo if cae else dummy_function
     debug_out(f"    # executing at {os.getcwd()}: {args}")
-    pipe = None if lines_output is None else subprocess.PIPE
+
     result: Union[subprocess.CompletedProcess, subprocess.CalledProcessError]   # having: stdout/stderr/returncode
     try:
-        result = subprocess.run(args, stdout=pipe, stderr=pipe, input=console_input.encode(), check=True, shell=shell)
+        result = subprocess.run(args,
+                                stdout=subprocess.PIPE if ret_out else None,
+                                stderr=subprocess.STDOUT if merge_err else subprocess.PIPE if ret_out else None,
+                                input=console_input.encode(),
+                                check=True,
+                                shell=shell)
     except subprocess.CalledProcessError as ex:                                             # pragma: no cover
         debug_out(f"****  subprocess.run({args=}) returned non-zero exit code {ex.returncode}; {ex=}")
         result = ex
@@ -281,13 +295,15 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
         print_out(f"****  subprocess.run({args}) raised exception {ex}")
         return 126
 
-    if lines_output is not None:
+    if ret_out:
+        assert isinstance(lines_output, list), "silly mypy doesn't recognize ret_out"
         if result.stdout:
             lines_output.extend([line for line in result.stdout.decode().split(os.linesep) if line])
-        if result.stderr:
-            lines_output.append("vvv   STDERR   vvv")
+        if not merge_err and result.stderr:
+            lines_output.append(STDERR_BEG_MARKER)
             lines_output.extend([line for line in result.stderr.decode().split(os.linesep) if line])
-            lines_output.append("^^^   STDERR   ^^^")
+            lines_output.append(STDERR_END_MARKER)
+
     return result.returncode
 
 
