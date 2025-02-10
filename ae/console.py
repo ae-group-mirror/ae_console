@@ -209,21 +209,22 @@ import shlex
 import subprocess
 import threading
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Set, Type, Tuple, Union
+from typing import Any, Callable, Iterable, Optional, Sequence, Type, Union
 from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 from ae.base import (                                                                       # type: ignore
     CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
-    dummy_function, env_str, instantiate_config_parser, norm_name, os_user_name, sys_env_dict, sys_env_text)
-from ae.paths import normalize, Collector, PATH_PLACEHOLDERS                                # type: ignore
+    dummy_function, env_str, instantiate_config_parser, norm_name, os_path_isfile, os_path_join,
+    os_user_name, sys_env_dict, sys_env_text)
+from ae.paths import PATH_PLACEHOLDERS, normalize, Collector  # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                                       # type: ignore  # for mypy
-    DEBUG_LEVEL_DISABLED, DEBUG_LEVELS, main_app_instance, ori_std_out, _LOGGER, AppBase)
+    DEBUG_LEVEL_DISABLED, DEBUG_LEVELS, main_app_instance, ori_std_out, _LOGGER as APP_LOGGER, AppBase)
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.73'
+__version__ = '0.3.74'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -256,14 +257,14 @@ def config_value_string(value: Any) -> str:
 
 
 def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "",
-            lines_output: Optional[List[str]] = None, cae: Optional[Any] = None, shell: bool = False) -> int:
+            lines_output: Optional[list[str]] = None, cae: Optional[Any] = None, shell: bool = False) -> int:
     """ execute command in the current working directory of the OS console/shell.
 
     :param command_line:        command line string to execute on the console/shell. could contain command line args
                                 separated by whitespace characters (alternatively use :paramref:`~sh_exec.extra_args`).
     :param extra_args:          optional sequence of extra command line arguments.
     :param console_input:       optional string to be sent to the stdin stream of the console/shell.
-    :param lines_output:        optional list to be exteneded with the lines printed to stdout/stderr on execution.
+    :param lines_output:        optional list to be extended with the lines printed to stdout/stderr on execution.
                                 by passing an empty list the stdout and stderr streams/pipes will be separated,
                                 resulting in having the stderr output lines at the end of the list, enclosed by
                                 the list items :data:`STDERR_BEG_MARKER` and :data:`STDERR_END_MARKER`.
@@ -325,10 +326,10 @@ class ConsoleApp(AppBase):
       additional configuration/INI files via the :paramref:`~ConsoleApp.additional_cfg_files` argument).
     * :attr:`cfg_options`           pre-/user-defined options (dict of :class:`~.literal.Literal` instances defined
       via :meth:`~ConsoleApp.add_option`).
+    * :attr:`_cfg_opt_val_stripper` callable to strip option values.
     * :attr:`_cfg_parser`           ConfigParser instance.
     * :attr:`_main_cfg_fnam`        main config file name.
     * :attr:`_main_cfg_mod_time`    last modification datetime of main config file.
-    * :attr:`_cfg_opt_val_stripper` callable to strip option values.
     * :attr:`_parsed_arguments`     ArgumentParser.parse_args() return.
     """
     def __init__(self, app_title: str = '', app_name: str = '', app_version: str = '', sys_env_id: str = '',
@@ -404,15 +405,15 @@ class ConsoleApp(AppBase):
 
         with config_lock:
             self._cfg_parser = instantiate_config_parser()                  #: ConfigParser instance
-            self.cfg_options: Dict[str, Literal] = {}                       #: all config options
-            self.cfg_opt_choices: Dict[str, Iterable] = {}                  #: all valid config option choices
+            self.cfg_options: dict[str, Literal] = {}                       #: all config options
+            self.cfg_opt_choices: dict[str, Iterable] = {}                  #: all valid config option choices
             self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or {}          #: app-specific vars for init of cfg options
 
             # prepare config files, including default config file (last existing INI/CFG file) for
             # to write to. if there is no INI file at all then create on demand a <app_name>.INI file in the cwd.
             # note: the main INI file default file path will possibly be overwritten by :meth:`.load_cfg_files`.
             self._cfg_files: list = []                                      #: list of all found INI/CFG files
-            self._main_cfg_fnam: str = os.path.join(os.getcwd(), self.app_name + INI_EXT)  #: def main config file name
+            self._main_cfg_fnam: str = os_path_join(os.getcwd(), self.app_name + INI_EXT)  #: def main config file name
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
             warn_msg = self.add_cfg_files(*additional_cfg_files)
             if warn_msg:
@@ -426,7 +427,7 @@ class ConsoleApp(AppBase):
         self.load_cfg_files()
 
         self.registered_users: list[str] = []
-        self.user_specific_cfg_vars: Set[Tuple[str, str]] = set()
+        self.user_specific_cfg_vars: set[tuple[str, str]] = set()
         self._init_default_user_cfg_vars()
         self.load_user_cfg()
 
@@ -434,8 +435,8 @@ class ConsoleApp(AppBase):
 
         log_file_name = self._init_logging(logging_params)
 
-        self.dpo(self.app_name, "      startup", self.startup_beg, self.app_title, logger=_LOGGER)
-        self.dpo(f"####  {self.app_key} initialization......  ####", logger=_LOGGER)
+        self.dpo(self.app_name, "      startup", self.startup_beg, self.app_title, logger=APP_LOGGER)
+        self.dpo(f"####  {self.app_key} initialization......  ####", logger=APP_LOGGER)
 
         # prepare argument parser
         if not formatter_class:
@@ -447,10 +448,10 @@ class ConsoleApp(AppBase):
         setattr(self, 'add_argument', self._arg_parser.add_argument)
 
         # create pre-defined config options
-        self.add_opt('debug_level', "Verbosity of debug messages send to console and log files",
-                     self._debug_level, 'D', choices=DEBUG_LEVELS.keys())
+        self.add_option('debug_level', "Verbosity of debug messages send to console and log files",
+                        self._debug_level, 'D', choices=DEBUG_LEVELS.keys())
         if log_file_name is not None:
-            self.add_opt('log_file', "Log file path", log_file_name, 'L')
+            self.add_option('log_file', "Log file path", log_file_name, 'L')
 
     def _init_default_user_cfg_vars(self):
         """ init user default config variables.
@@ -459,7 +460,7 @@ class ConsoleApp(AppBase):
         """
         self.user_specific_cfg_vars |= {(MAIN_SECTION_NAME, 'debug_level')}
 
-    def _init_logging(self, logging_params: Dict[str, Any]) -> Optional[str]:
+    def _init_logging(self, logging_params: dict[str, Any]) -> Optional[str]:
         """ determine and init logging config.
 
         :param logging_params:      logging config dict passed as args by user that will be amended with cfg values.
@@ -580,7 +581,7 @@ class ConsoleApp(AppBase):
 
         return "\n".join(f"config file {fnam} not found ({count} times)!" for fnam, count in coll.suffix_failed.items())
 
-    def cfg_section_variable_names(self, section: str, cfg_parser: Optional[ConfigParser] = None) -> Tuple[str, ...]:
+    def cfg_section_variable_names(self, section: str, cfg_parser: Optional[ConfigParser] = None) -> tuple[str, ...]:
         """ determine current config variable names/keys of the passed config file section.
 
         :param section:         config file section name.
@@ -618,7 +619,7 @@ class ConsoleApp(AppBase):
         """
         with config_lock:
             for cfg_fnam in reversed(self._cfg_files):
-                if cfg_fnam.endswith(INI_EXT) and os.path.isfile(cfg_fnam):
+                if cfg_fnam.endswith(INI_EXT) and os_path_isfile(cfg_fnam):
                     self._main_cfg_fnam = cfg_fnam
                     if config_modified:
                         self._main_cfg_mod_time = os.path.getmtime(self._main_cfg_fnam)
@@ -711,7 +712,7 @@ class ConsoleApp(AppBase):
         if name != 'user_id':
             section = self.user_section(section, name)
 
-        if not cfg_fnam or not os.path.isfile(cfg_fnam):
+        if not cfg_fnam or not os_path_isfile(cfg_fnam):
             return msg + f"INI/CFG file {cfg_fnam} not found." \
                          f" Please set the ini/cfg variable {section}/{name} manually to the value {value!r}"
 
@@ -750,7 +751,7 @@ class ConsoleApp(AppBase):
         """
         msg = f"****  ConsoleApp.del_section({section=}, {cfg_fnam=}) "
         cfg_fnam = cfg_fnam or self._main_cfg_fnam
-        if not cfg_fnam or not os.path.isfile(cfg_fnam):
+        if not cfg_fnam or not os_path_isfile(cfg_fnam):
             return msg + f"INI/CFG file {cfg_fnam} not found."
 
         err_msg = ''
@@ -941,7 +942,7 @@ class ConsoleApp(AppBase):
 
         # finished argument parsing - now print chosen option values to the console
         self.startup_end = datetime.datetime.now()
-        self.po(f"####  {self.app_name}  V {self.app_version}  args parsed at {self.startup_end}  ####", logger=_LOGGER)
+        self.po(f"####  {self.app_name}  V {self.app_version}  args parsed at {self.startup_end}", logger=APP_LOGGER)
 
         self.debug_level = self.cfg_options['debug_level'].value
 
@@ -951,13 +952,13 @@ class ConsoleApp(AppBase):
 
         if self.debug:
             debug_levels = ", ".join([str(k) + "=" + v for k, v in DEBUG_LEVELS.items()])
-            self.po(f"  ##  debug level({debug_levels}): {self.debug_level}", logger=_LOGGER)
+            self.po(f"  ##  debug level({debug_levels}): {self.debug_level}", logger=APP_LOGGER)
             if self._log_file_name:
-                self.po(f"   #  log file: {self._log_file_name}", logger=_LOGGER)
+                self.po(f"   #  log file: {self._log_file_name}", logger=APP_LOGGER)
             if self.user_id:
-                self.po(f"   #  user id: {self.user_id}", logger=_LOGGER)
-            self.po(f"  ##  {self.app_key} system environment:", logger=_LOGGER)
-            self.po(sys_env_text(extra_sys_env_dict=self.app_env_dict()), logger=_LOGGER)
+                self.po(f"   #  user id: {self.user_id}", logger=APP_LOGGER)
+            self.po(f"  ##  {self.app_key} system environment:", logger=APP_LOGGER)
+            self.po(sys_env_text(extra_sys_env_dict=self.app_env_dict()), logger=APP_LOGGER)
 
     # app user related properties and methods
 
@@ -1039,12 +1040,12 @@ class ConsoleApp(AppBase):
 
     # optional helper and extra feature methods
 
-    def app_env_dict(self) -> Dict[str, Any]:
+    def app_env_dict(self) -> dict[str, Any]:
         """ collect run-time app environment data and settings - for app logging and debugging.
 
         :return:                dict with app environment data/settings.
         """
-        app_env_info: Dict[str, Any] = {"main config": self._main_cfg_fnam, "sys env id": self.sys_env_id}
+        app_env_info: dict[str, Any] = {"main config": self._main_cfg_fnam, "sys env id": self.sys_env_id}
         if self.debug:
             app_data = dict(app_key=self.app_key)
             if self.verbose:
@@ -1054,7 +1055,7 @@ class ConsoleApp(AppBase):
                 app_data['app_version'] = self.app_version
             app_env_info["app data"] = app_data
 
-            cfg_data: Dict[str, Any] = dict(_cfg_files=self._cfg_files, cfg_options=self.cfg_options)
+            cfg_data: dict[str, Any] = dict(_cfg_files=self._cfg_files, cfg_options=self.cfg_options)
             if self.verbose:
                 cfg_data['cfg_opt_choices'] = self.cfg_opt_choices
                 cfg_data['cfg_opt_eval_vars'] = self.cfg_opt_eval_vars
