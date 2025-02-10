@@ -9,16 +9,17 @@ import threading
 import time
 
 from argparse import ArgumentError
-from unittest.mock import patch
 from typing import cast, Any
+from unittest.mock import patch
 
 from conftest import skip_gitlab_ci, delete_files
 
 from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, os_user_name, write_file
 from ae.paths import normalize
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
-                     activate_multi_threading, main_app_instance, po, SubApp)
-from ae.console import MAIN_SECTION_NAME, USER_NAME_MAX_LEN, ConsoleApp, config_value_string, sh_exec
+                     activate_multi_threading, main_app_instance, print_out)
+
+from ae.console import MAIN_SECTION_NAME, USER_NAME_MAX_LEN, config_value_string, sh_exec, ConsoleApp
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def config_fna_vna_vva(request):
         file_name = normalize(file_name)
         if os.path.sep not in file_name:
             file_name = os.path.join(os.getcwd(), file_name)
-        write_file(file_name, f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}\n{additional_line}")
+        write_file(file_name, f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}\n{additional_line}", make_dirs=True)
 
         def _tear_down():               # using yield instead of finalizer does not execute the teardown part
             if os.path.exists(file_name):       # some tests are deleting the config file explicitly
@@ -146,9 +147,9 @@ class TestAeLogging:
         try:
             app = ConsoleApp('test_main_app')
             app.init_logging(log_file_name=mp + log_file)
-            sub = SubApp('test_sub_app', app_name=sp)
+            sub = ConsoleApp('test_sub_app', app_name=sp)
             sub.init_logging(log_file_name=sp + log_file)
-            po(mp + tst_out + "_1")
+            print_out(mp + tst_out + "_1")
             app.po(mp + tst_out + "_2")
             sub.po(sp + tst_out)
             sub.init_logging()
@@ -174,9 +175,9 @@ class TestAeLogging:
         sub_printed = False
 
         def sub_app_po():
-            """ sub app thread function """
+            """ sub-app thread function """
             nonlocal sub, sub_printed
-            sub = SubApp('test_sub_app_thread', app_name=sp)
+            sub = ConsoleApp('test_sub_app_thread', app_name=sp)
             sub.init_logging(log_file_name=sp + log_file)
             sub.po(sp + tst_out)
             sub_printed = True
@@ -193,9 +194,12 @@ class TestAeLogging:
             sub_thread.start()
             while not sub_printed:      # NOT ENOUGH - failing on gitlab ci with: not sub or not sub.active_log_stream:
                 pass                    # wait until sub-thread has called init_logging()
-            po(mp + tst_out + "_1")
+            print_out(mp + tst_out + "_1")
             app.po(mp + tst_out + "_2")
-            assert isinstance(sub, SubApp)
+            assert app is main_app_instance()
+            assert app.is_main
+            assert sub is not None
+            assert not sub.is_main
             sub.init_logging()  # close sub-app log file
             sub_thread.join()
             app.init_logging()  # close main-app log file
@@ -451,8 +455,8 @@ class TestConfigOptions:
     @skip_gitlab_ci     # skip on gitlab because it does not provide user/home ~/.config folder
     def test_get_var_file_order(self, restore_app_env, config_fna_vna_vva):
         cwd_file, var_name, cwd_value = config_fna_vna_vva(file_name='test' + INI_EXT, var_value='cwd')
-        cae = ConsoleApp('test_get_var_file_order', app_name='test')
-        assert cae.get_var(var_name) == cwd_value                       # cwd variable
+        cae = ConsoleApp('test_get_var_file_order', app_name='test')    # not needed: additional_cfg_files=[cwd_file]
+        assert cae.get_variable(var_name) == cwd_value                  # cwd variable
 
         usr_file, _, usr_value = config_fna_vna_vva(file_name='{usr}/test' + INI_EXT, var_value='usr')
         assert usr_file != cwd_file
@@ -460,9 +464,7 @@ class TestConfigOptions:
         cae.load_cfg_files()
         assert cae.get_var(var_name) == usr_value                       # usr variable overwrite cwd variable
 
-        app_path = normalize("{ado}")
-        # if not os.path.exists(app_path):
-        #    os.mkdir(app_path)  # will not be removed after test run!
+        app_path = normalize("{ado}")   # home/Documents/test will not be removed after test run!
         app_file, _, app_value = config_fna_vna_vva(file_name='{ado}/test' + INI_EXT, var_value='ado')
         assert app_file != cwd_file and app_file != usr_file
         cae.add_cfg_files()
@@ -922,7 +924,7 @@ class TestConfigOptions:
         app_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
         file_name, var_name, old_var_val = config_fna_vna_vva(file_name=os.path.join(os.getcwd(), app_name + INI_EXT))
 
-        cae = ConsoleApp('test_set_var_with_reload', app_name=app_name)
+        cae = ConsoleApp('test_set_var_with_reload', app_name=app_name)  # not needed: additional_cfg_files=[file_name]
         time.sleep(.963)    # needed because Python is too quick, especially on github-ci (fails sometimes with 0.639)
         new_var_val = 'NEW_test_value'
         assert not cae.set_var(var_name, new_var_val)
