@@ -82,13 +82,13 @@ class TestAeLogging:
             content = delete_files(log_file, ret_type="contents")
             assert tst_out in content[0]
 
-    def test_cae_log_file_rotation(self, restore_app_env, sys_argv_app_key_restore):
+    def test_cae_log_file_rotation(self, restore_app_env):
         log_file = 'test_cae_rot_log.log'
         cae = ConsoleApp('test_cae_log_file_rotation',
                          multi_threading=True, log_file_name=log_file, log_file_size_max=.001,
                          debug_level=DEBUG_LEVEL_VERBOSE)
         try:
-            sys.argv = [sys_argv_app_key_restore, ]
+            sys.argv = [restore_app_env, ]
             file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once to create log file
             assert file_name_chk == log_file
             for idx in range(MAX_NUM_LOG_FILES + 9):
@@ -128,11 +128,11 @@ class TestAeLogging:
     def test_app_instances_reset3(self):
         assert main_app_instance() is None
 
-    def test_log_file_flush(self, restore_app_env, sys_argv_app_key_restore):
+    def test_log_file_flush(self, restore_app_env):
         log_file = 'test_ae_log_flush.log'
         cae = ConsoleApp('test_log_file_flush', log_file_name=log_file)
         try:
-            sys.argv = [sys_argv_app_key_restore, ]
+            sys.argv = [restore_app_env, ]
             file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once to create log file
             assert file_name_chk == log_file
             assert os.path.exists(log_file)
@@ -199,7 +199,9 @@ class TestAeLogging:
             assert app is main_app_instance()
             assert app.is_main
             assert sub is not None
+            # noinspection PyUnresolvedReferences
             assert not sub.is_main
+            # noinspection PyUnresolvedReferences
             sub.init_logging()  # close sub-app log file
             sub_thread.join()
             app.init_logging()  # close main-app log file
@@ -259,7 +261,7 @@ class TestPythonLogging:
 #         assert cae.py_log_params == var_val
 #         logging.shutdown()
 #
-#     def test_logging_params_dict_complex(self, restore_app_env, sys_argv_app_key_restore):
+#     def test_logging_params_dict_complex(self, restore_app_env):
 #         log_file = 'test_py_log_complex.log'
 #         entry_prefix = "TEST LOG ENTRY "
 #
@@ -471,7 +473,7 @@ class TestConfigOptions:
         cae.load_cfg_files()
         assert cae.get_var(var_name) == app_value                       # usr_app variable overwrites cwd+usr variables
 
-    def test_set_var_basics(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
+    def test_set_var_basics(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(file_name='test' + INI_EXT)
 
         opt_test_val = 'opt_test_val'
@@ -497,7 +499,7 @@ class TestConfigOptions:
         assert not cae.set_var(var_name, val)
         assert cae.get_var(var_name) == val.strftime(DATE_ISO)
 
-    def test_set_var_without_ini(self, restore_app_env, sys_argv_app_key_restore):
+    def test_set_var_without_ini(self, restore_app_env):
         var_name = 'test_config_var'
         cae = ConsoleApp('test_set_var_without_ini')
         cae.add_opt(var_name, 'test_set_var_without_ini', 'init_test_val', short_opt='t')
@@ -574,38 +576,38 @@ class TestConfigOptions:
         cfg_val = cae.get_var(new_var_name)
         assert cfg_val == val
 
-    def test_multiple_option_single_char(self, restore_app_env, sys_argv_app_key_restore):
+    def test_multiple_option_single_char(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option')
         sys.argv = ['test', "-Z=a", "-Z=1"]
         cae.add_opt('testMultipleOptionSC', 'test multiple option', [], 'Z', multiple=True)
         assert cae.get_opt('testMultipleOptionSC') == ['a', '1']
 
-    def test_multiple_option_multi_char(self, restore_app_env, sys_argv_app_key_restore):
+    def test_multiple_option_multi_char(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option_multi_char')
         sys.argv = ['test', "-Z=abc", "-Z=123"]
         cae.add_opt('testMultipleOptionMC', 'test multiple option', [], short_opt='Z', multiple=True)
         assert cae.get_opt('testMultipleOptionMC') == ['abc', '123']
 
-    def test_multiple_option_multi_values_fail(self, restore_app_env, sys_argv_app_key_restore):
+    def test_multiple_option_multi_values_fail(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option_multi_val')
         sys.argv = ['test', "-Z", "abc", "123"]
         cae.add_opt('testMultipleOptionMV', 'test multiple option', [], short_opt='Z', multiple=True)
         with pytest.raises(SystemExit):
             cae.get_opt('testMultipleOptionMV')
 
-    def test_multiple_option_single_char_with_choices(self, restore_app_env, sys_argv_app_key_restore):
+    def test_multiple_option_single_char_with_choices(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option_with_choices')
         sys.argv = ['test', "-Z=a", "-Z=1"]
         cae.add_opt('testAppOptChoicesSCWC', 'test multiple choices', [], 'Z', choices=['a', '1'], multiple=True)
         assert cae.get_opt('testAppOptChoicesSCWC') == ['a', '1']
 
-    def test_multiple_option_stripped_value_with_choices(self, restore_app_env, sys_argv_app_key_restore):
+    def test_multiple_option_stripped_value_with_choices(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option_stripped_with_choices', cfg_opt_val_stripper=lambda v: v[-1])
         sys.argv = ['test', "-Z=x6", "-Z=yyy9"]
         cae.add_opt('testAppOptChoicesSVWC', 'test multiple choices', [], 'Z', choices=['6', '9'], multiple=True)
         assert cae.get_opt('testAppOptChoicesSVWC') == ['x6', 'yyy9']
 
-    def test_multiple_option_single_char_fail_with_invalid_choices(self, restore_app_env, sys_argv_app_key_restore):
+    def test_multiple_option_single_char_fail_with_invalid_choices(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option_fail_with_choices')
         sys.argv = ['test', "-Z=x", "-Z=9"]
         cae.add_opt('testAppOptChoices', 'test multiple choices', [], 'Z', choices=['a', '1'], multiple=True)
@@ -619,128 +621,128 @@ class TestConfigOptions:
         cfg_val = cae.get_var('not_existing_config_var2', value_type=bool)
         assert cfg_val is False
 
-    def test_long_option_str_value(self, restore_app_env, sys_argv_app_key_restore):
+    def test_long_option_str_value(self, restore_app_env):
         cae = ConsoleApp('test_long_option_str_value')
         opt_val = 'testString'
         sys.argv = ['test', '--testStringOption=' + opt_val]
         cae.add_opt('testStringOption', 'test long option', '', 'Z')
         assert cae.get_opt('testStringOption') == opt_val
 
-    def test_short_option_str_value(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_str_value(self, restore_app_env):
         cae = ConsoleApp('test_option_str_value')
         opt_val = 'testString'
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testStringOption', 'test short option', '', 'Z')
         assert cae.get_opt('testStringOption') == opt_val
 
-    def test_short_option_str_eval(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_str_eval(self, restore_app_env):
         cae = ConsoleApp('test_option_str_eval')
         opt_val = 'testString'
         sys.argv = ['test', '-Z=""""' + opt_val + '""""']
         cae.add_opt('testString2Option', 'test str eval short option', '', 'Z')
         assert cae.get_opt('testString2Option') == opt_val
 
-    def test_short_option_bool_str(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_bool_str(self, restore_app_env):
         cae = ConsoleApp('test_option_bool_str')
         opt_val = 'False'
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testBoolOption', 'test bool str option', True, 'Z')
         assert cae.get_opt('testBoolOption') is False
 
-    def test_short_option_bool_number(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_bool_number(self, restore_app_env):
         cae = ConsoleApp('test_option_bool_str')
         opt_val = '0'
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testBoolOption', 'test bool number option', True, 'Z')
         assert cae.get_opt('testBoolOption') is False
 
-    def test_short_option_bool_number_true(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_bool_number_true(self, restore_app_env):
         cae = ConsoleApp('test_option_bool_str')
         opt_val = '1'
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testBoolOption', 'test bool number option', False, 'Z')
         assert cae.get_opt('testBoolOption') is True
 
-    def test_short_option_bool_eval(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_bool_eval(self, restore_app_env):
         cae = ConsoleApp('test_option_bool_str')
         opt_val = '"""0 == 1"""'
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testBoolOption', 'test bool eval option', True, 'Z')
         assert cae.get_opt('testBoolOption') is False
 
-    def test_short_option_bool_eval_true(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_bool_eval_true(self, restore_app_env):
         cae = ConsoleApp('test_option_bool_str')
         opt_val = '"""9 == 9"""'
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testBoolOption', 'test bool eval option', False, 'Z')
         assert cae.get_opt('testBoolOption') is True
 
-    def test_short_option_bool_flag(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_bool_flag(self, restore_app_env):
         cae = ConsoleApp('test_option_bool_flag')
         sys.argv = ['test', '-Z']
         cae.add_opt('testBoolFlagOption', 'test bool flag option', UNSET, 'Z')
         assert cae.get_opt('testBoolFlagOption') is True
 
-    def test_short_option_date_str(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_date_str(self, restore_app_env):
         cae = ConsoleApp('test_option_date_str')
         opt_val = '2016-12-24'
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testDateOption', 'test date str option', datetime.date.today(), 'Z')
         assert cae.get_opt('testDateOption') == datetime.date(year=2016, month=12, day=24)
 
-    def test_short_option_datetime_str(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_datetime_str(self, restore_app_env):
         cae = ConsoleApp('test_option_datetime_str')
         opt_val = '2016-12-24 7:8:0.0'
         sys.argv = ['test', '-Z=' + opt_val]
         cae.add_opt('testDatetimeOption', 'test datetime str option', datetime.datetime.now(), 'Z')
         assert cae.get_opt('testDatetimeOption') == datetime.datetime(year=2016, month=12, day=24, hour=7, minute=8)
 
-    def test_short_option_date_eval(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_date_eval(self, restore_app_env):
         cae = ConsoleApp('test_option_date_eval')
         sys.argv = ['test', '-Z="""datetime.date(year=2016, month=12, day=24)"""']
         cae.add_opt('testDateOption', 'test date eval test option', datetime.date.today(), 'Z')
         assert cae.get_opt('testDateOption') == datetime.date(year=2016, month=12, day=24)
 
-    def test_short_option_datetime_eval(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_datetime_eval(self, restore_app_env):
         cae = ConsoleApp('test_option_datetime_eval')
         sys.argv = ['test', '-Z="""datetime.datetime(year=2016, month=12, day=24, hour=7, minute=8)"""']
         cae.add_opt('testDatetimeOption', 'test datetime eval test option', datetime.datetime.now(), 'Z')
         assert cae.get_opt('testDatetimeOption') == datetime.datetime(year=2016, month=12, day=24, hour=7, minute=8)
 
-    def test_short_option_list_str(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_list_str(self, restore_app_env):
         cae = ConsoleApp('test_option_list_str')
         opt_val = [1, 2, 3]
         sys.argv = ['test', '-Z=' + repr(opt_val)]
         cae.add_opt('testListStrOption', 'test list str option', [], 'Z')
         assert cae.get_opt('testListStrOption') == opt_val
 
-    def test_short_option_list_eval(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_list_eval(self, restore_app_env):
         cae = ConsoleApp('test_option_list_eval')
         sys.argv = ['test', '-Z="""[1, 2, 3]"""']
         cae.add_opt('testListEvalOption', 'test list eval option', [], 'Z')
         assert cae.get_opt('testListEvalOption') == [1, 2, 3]
 
-    def test_short_option_dict_str(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_dict_str(self, restore_app_env):
         cae = ConsoleApp('test_option_dict_str')
         opt_val = {'a': 1, 'b': 2, 'c': 3}
         sys.argv = ['test', '-Z=' + repr(opt_val)]
         cae.add_opt('testDictStrOption', 'test list str option', {}, 'Z')
         assert cae.get_opt('testDictStrOption') == opt_val
 
-    def test_short_option_dict_eval(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_dict_eval(self, restore_app_env):
         cae = ConsoleApp('test_option_dict_eval')
         sys.argv = ['test', "-Z='''{'a': 1, 'b': 2, 'c': 3}'''"]
         cae.add_opt('testDictEvalOption', 'test dict eval option', {}, 'Z')
         assert cae.get_opt('testDictEvalOption') == {'a': 1, 'b': 2, 'c': 3}
 
-    def test_short_option_tuple_str(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_tuple_str(self, restore_app_env):
         cae = ConsoleApp('test_option_tuple_str')
         opt_val = ('a', 'b', 'c')
         sys.argv = ['test', '-Z=' + repr(opt_val)]
         cae.add_opt('testTupleStrOption', 'test tuple str option', (), 'Z')
         assert cae.get_opt('testTupleStrOption') == opt_val
 
-    def test_short_option_tuple_eval(self, restore_app_env, sys_argv_app_key_restore):
+    def test_short_option_tuple_eval(self, restore_app_env):
         cae = ConsoleApp('test_option_tuple_eval')
         sys.argv = ['test', "-Z='''('a', 'b', 'c')'''"]
         cae.add_opt('testDictEvalOption', 'test tuple eval option', (), 'Z')
@@ -829,87 +831,86 @@ class TestConfigOptions:
         cae = ConsoleApp('test_add_opt_default', debug_level=DEBUG_LEVEL_VERBOSE)
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
-    def test_base_debug_level_short_option_value(self, restore_app_env, sys_argv_app_key_restore):
+    def test_base_debug_level_short_option_value(self, restore_app_env):
         cae = ConsoleApp('test_option_value')
         sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_VERBOSE)]
         cae.run_app()
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
-    def test_base_debug_level_long_option_value(self, restore_app_env, sys_argv_app_key_restore):
+    def test_base_debug_level_long_option_value(self, restore_app_env):
         cae = ConsoleApp('test_long_option_value')
         sys.argv = ['test', '--debug_level=' + str(DEBUG_LEVEL_VERBOSE)]
         cae.run_app()
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
-    def test_base_debug_level_short_option_eval_single_quoted(self, restore_app_env, sys_argv_app_key_restore):
+    def test_base_debug_level_short_option_eval_single_quoted(self, restore_app_env):
         cae = ConsoleApp('test_quoted_option_eval')
         sys.argv = ["test", "-D='''int('" + str(DEBUG_LEVEL_VERBOSE) + "')'''"]
         cae.run_app()
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
-    def test_base_debug_level_short_option_eval_double_quoted(self, restore_app_env, sys_argv_app_key_restore):
+    def test_base_debug_level_short_option_eval_double_quoted(self, restore_app_env):
         cae = ConsoleApp('test_double_quoted_option_eval')
         sys.argv = ['test', '-D="""int("' + str(DEBUG_LEVEL_VERBOSE) + '")"""']
         cae.run_app()
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
-    def test_base_debug_level_config_default(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
+    def test_base_debug_level_config_default(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level', var_value=str(DEBUG_LEVEL_VERBOSE))
         cae = ConsoleApp('test_config_default', additional_cfg_files=[file_name])
-        sys.argv = [sys_argv_app_key_restore, ]
+        sys.argv = [restore_app_env, ]
         cae.run_app()
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
-    def test_base_debug_level_config_eval_single_quote(self, restore_app_env, config_fna_vna_vva,
-                                                       sys_argv_app_key_restore):
+    def test_base_debug_level_config_eval_single_quote(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level',
                                                     var_value="'''int('" + str(DEBUG_LEVEL_VERBOSE) + "')'''")
         cae = ConsoleApp('test_config_eval', additional_cfg_files=[file_name])
-        sys.argv = [sys_argv_app_key_restore, ]
+        sys.argv = [restore_app_env, ]
         cae.run_app()
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
-    def test_debug_level_short_option_value(self, restore_app_env, sys_argv_app_key_restore):
+    def test_debug_level_short_option_value(self, restore_app_env):
         cae = ConsoleApp('test_option_value')
         sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_VERBOSE)]
         assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
-    def test_debug_level_long_option_value(self, restore_app_env, sys_argv_app_key_restore):
+    def test_debug_level_long_option_value(self, restore_app_env):
         cae = ConsoleApp('test_long_option_value')
         sys.argv = ['test', '--debug_level=' + str(DEBUG_LEVEL_VERBOSE)]
         assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
-    def test_debug_level_short_option_eval_single_quoted(self, restore_app_env, sys_argv_app_key_restore):
+    def test_debug_level_short_option_eval_single_quoted(self, restore_app_env):
         cae = ConsoleApp('test_quoted_option_eval')
         sys.argv = ["test", "-D='''int('" + str(DEBUG_LEVEL_VERBOSE) + "')'''"]
         assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
-    def test_debug_level_short_option_eval_double_quoted(self, restore_app_env, sys_argv_app_key_restore):
+    def test_debug_level_short_option_eval_double_quoted(self, restore_app_env):
         cae = ConsoleApp('test_double_quoted_option_eval')
         sys.argv = ['test', '-D="""int("' + str(DEBUG_LEVEL_VERBOSE) + '")"""']
         assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
 
-    def test_debug_level_config_default(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
+    def test_debug_level_config_default(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level', var_value=str(DEBUG_LEVEL_VERBOSE))
         cae = ConsoleApp('test_config_default', additional_cfg_files=[file_name])
-        sys.argv = [sys_argv_app_key_restore, ]
+        sys.argv = [restore_app_env, ]
         assert cae.get_opt(var_name) == DEBUG_LEVEL_VERBOSE
 
-    def test_debug_level_config_eval_single_quote(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
+    def test_debug_level_config_eval_single_quote(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level',
                                                     var_value="'''int('" + str(DEBUG_LEVEL_VERBOSE) + "')'''")
         cae = ConsoleApp('test_config_eval', additional_cfg_files=[file_name])
-        sys.argv = [sys_argv_app_key_restore, ]
+        sys.argv = [restore_app_env, ]
         assert cae.get_opt(var_name) == DEBUG_LEVEL_VERBOSE
 
-    def test_debug_level_config_eval_double_quote(self, restore_app_env, config_fna_vna_vva, sys_argv_app_key_restore):
+    def test_debug_level_config_eval_double_quote(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(var_name='debug_level',
                                                     var_value='"""int("' + str(DEBUG_LEVEL_VERBOSE) + '")"""')
         cae = ConsoleApp('test_config_double_eval', additional_cfg_files=[file_name])
-        sys.argv = [sys_argv_app_key_restore, ]
+        sys.argv = [restore_app_env, ]
         assert cae.get_opt(var_name) == DEBUG_LEVEL_VERBOSE
 
-    def test_sys_env_id_with_debug(self, restore_app_env, sys_argv_app_key_restore):
+    def test_sys_env_id_with_debug(self, restore_app_env):
         cae = ConsoleApp('test_sys_env_id_with_debug', sys_env_id='OTHER')
         sys.argv = ['test', '-D=' + str(DEBUG_LEVEL_VERBOSE)]
         assert cae.get_opt('debug_level') == DEBUG_LEVEL_VERBOSE
@@ -961,7 +962,7 @@ class TestConfigOptions:
 
 # noinspection PyUnusedLocal
 class TestConsoleAppBasics:
-    def test_app_name(self, restore_app_env, sys_argv_app_key_restore):
+    def test_app_name(self, restore_app_env):
         assert main_app_instance() is None
         name = 'tan_cae_name'
         sys.argv = [name, ]
@@ -980,7 +981,7 @@ class TestConsoleAppBasics:
         cae.add_opt(opt_name, 'test_opt_description', opt_val)
         assert cae.get_option(opt_name) == opt_val
 
-    def test_set_opt(self, restore_app_env, sys_argv_app_key_restore):
+    def test_set_opt(self, restore_app_env):
         tst_val = 'test_init_value'
         cae = ConsoleApp('test_set_opt')
         cae.add_opt('test_opt', 'test_opt_description', tst_val)
@@ -997,7 +998,7 @@ class TestConsoleAppBasics:
         cae = ConsoleApp('test_add_argument')
         cae.add_argument('test_arg')
 
-    def test_get_argument(self, restore_app_env, sys_argv_app_key_restore):
+    def test_get_argument(self, restore_app_env):
         cae = ConsoleApp('test_get_argument')
         cae.add_argument('test_arg')
         arg_val = 'test_arg_val'
@@ -1014,7 +1015,7 @@ class TestConsoleAppBasics:
         cae = ConsoleApp('test_show_help')
         cae.show_help()
 
-    def test_sys_env_id(self, capsys, restore_app_env, sys_argv_app_key_restore):
+    def test_sys_env_id(self, capsys, restore_app_env):
         sei = 'tSt'
         cae = ConsoleApp('test_sys_env_id', sys_env_id=sei, debug_level=DEBUG_LEVEL_VERBOSE)
         assert cae.sys_env_id == sei
@@ -1147,8 +1148,7 @@ class TestUser:
         cae.load_user_cfg()
         assert cae.user_id == def_val
 
-    def test_load_user_cfg_user_id_from_cfg_opt_preference(self, restore_app_env, config_fna_vna_vva,
-                                                           sys_argv_app_key_restore):
+    def test_load_user_cfg_user_id_from_cfg_opt_preference(self, restore_app_env, config_fna_vna_vva):
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_id')
         def_val = "option_default_value"
         opt_val = "option_value"
@@ -1164,8 +1164,7 @@ class TestUser:
         cae.load_user_cfg()                         # .. and cae.load_user_cfg() to reload user id (see next test)
         assert cae.user_id == opt_val
 
-    def test_load_user_cfg_user_id_from_cfg_opt_preference_with_run_app(self, restore_app_env, config_fna_vna_vva,
-                                                                        sys_argv_app_key_restore):
+    def test_load_user_cfg_user_id_from_cfg_opt_preference_with_run_app(self, restore_app_env, config_fna_vna_vva):
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_id')
         def_val = "option_default_value"
         opt_val = "option_value"
