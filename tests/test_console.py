@@ -1081,21 +1081,28 @@ class TestConsoleExecute:
 
         sh_exec(cmd_line, extra_args)
         mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'', check=True, shell=False)
+            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'', check=True, shell=False, env=None)
 
         sh_exec(cmd_line, extra_args, console_input='con_inp')
         mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'con_inp', check=True, shell=False)
+            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'con_inp',
+            check=True, shell=False, env=None)
 
         sh_exec(cmd_line, extra_args, lines_output=[])
         mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'', check=True,
-            shell=False)
+            cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'',
+            check=True, shell=False, env=None)
 
         sh_exec(cmd_line, extra_args, console_input='con_inp', lines_output=[])
         mock_method.assert_called_with(
             cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'con_inp',
-            check=True, shell=False)
+            check=True, shell=False, env=None)
+
+        env_vars = {'A': "1", 'C': "tst_string value"}
+        sh_exec(cmd_line, extra_args, env_vars=env_vars)
+        mock_method.assert_called_with(
+            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'',
+            check=True, shell=False, env=env_vars)
 
     @patch.object(subprocess, 'run', new=subprocess_run_return)
     def test_sh_exec_run_returned_values(self):

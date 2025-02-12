@@ -224,7 +224,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.75'
+__version__ = '0.3.76'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -257,7 +257,8 @@ def config_value_string(value: Any) -> str:
 
 
 def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "",
-            lines_output: Optional[list[str]] = None, cae: Optional[Any] = None, shell: bool = False) -> int:
+            lines_output: Optional[list[str]] = None, cae: Optional[Any] = None, shell: bool = False,
+            env_vars: Optional[dict[str, str]] = None) -> int:
     """ execute command in the current working directory of the OS console/shell.
 
     :param command_line:        command line string to execute on the console/shell. could contain command line args
@@ -271,6 +272,7 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
     :param cae:                 optional :class:`~ae.console.ConsoleApp` instance, only used for logging. to suppress
                                 any logging output pass :data:`~ae.base.UNSET`.
     :param shell:               pass True to execute command in the default OS shell (see :meth:`subprocess.run`).
+    :param env_vars:            OS shell environment variables to be used instead of the console/bash defaults.
     :return:                    return code of the executed command or 126 if execution raised any other exception.
     """
     # args = command_line + " " + " ".join(extra_args) if shell else command_line.split() + list(extra_args)
@@ -288,7 +290,8 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
                                 stderr=subprocess.STDOUT if merge_err else subprocess.PIPE if ret_out else None,
                                 input=console_input.encode(),
                                 check=True,
-                                shell=shell)
+                                shell=shell,
+                                env=env_vars)
     except subprocess.CalledProcessError as ex:                                             # pragma: no cover
         debug_out(f"****  subprocess.run({args=}) returned non-zero exit code {ex.returncode}; {ex=}")
         result = ex
