@@ -220,11 +220,11 @@ from ae.base import (                                                           
 from ae.paths import PATH_PLACEHOLDERS, normalize, Collector  # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                                       # type: ignore  # for mypy
-    DEBUG_LEVEL_DISABLED, DEBUG_LEVELS, main_app_instance, ori_std_out, _LOGGER as APP_LOGGER, AppBase)
+    DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, main_app_instance, ori_std_out, _LOGGER as APP_LOGGER, AppBase)
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.76'
+__version__ = '0.3.77'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -336,7 +336,7 @@ class ConsoleApp(AppBase):
     * :attr:`_parsed_arguments`     ArgumentParser.parse_args() return.
     """
     def __init__(self, app_title: str = '', app_name: str = '', app_version: str = '', sys_env_id: str = '',
-                 debug_level: int = DEBUG_LEVEL_DISABLED, multi_threading: bool = False, suppress_stdout: bool = False,
+                 debug_level: int = DEBUG_LEVEL_VERBOSE, multi_threading: bool = False, suppress_stdout: bool = False,
                  cfg_opt_eval_vars: Optional[dict] = None, additional_cfg_files: Iterable = (),
                  cfg_opt_val_stripper: Optional[Callable] = None,
                  formatter_class: Optional[Any] = None, epilog: str = "",
@@ -406,17 +406,16 @@ class ConsoleApp(AppBase):
         super().__init__(app_title=app_title, app_name=app_name, app_version=app_version, sys_env_id=sys_env_id,
                          debug_level=debug_level, multi_threading=multi_threading, suppress_stdout=suppress_stdout)
 
-        with config_lock:
+        with config_lock:       # prepare config parser and the config files, including the main config file to write to
             self._cfg_parser = instantiate_config_parser()                  #: ConfigParser instance
             self.cfg_options: dict[str, Literal] = {}                       #: all config options
             self.cfg_opt_choices: dict[str, Iterable] = {}                  #: all valid config option choices
             self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or {}          #: app-specific vars for init of cfg options
 
-            # prepare config files, including default config file (last existing INI/CFG file) for
-            # to write to. if there is no INI file at all then create on demand a <app_name>.INI file in the cwd.
-            # note: the main INI file default file path will possibly be overwritten by :meth:`.load_cfg_files`.
-            self._cfg_files: list = []                                      #: list of all found INI/CFG files
-            self._main_cfg_fnam: str = os_path_join(os.getcwd(), self.app_name + INI_EXT)  #: def main config file name
+            # use <app_name>.INI in the cwd as default (possibly be overwritten by :meth:`.load_cfg_files)
+            self._cfg_files: list = [os_path_join(os.getcwd(), self.app_name + INI_EXT)]
+            """ list of the default and all specified/added INI/CFG file paths """
+            self._main_cfg_fnam: str = ""                                   #: def main config file name
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
             warn_msg = self.add_cfg_files(*additional_cfg_files)
             if warn_msg:
@@ -425,9 +424,12 @@ class ConsoleApp(AppBase):
             """ callable to strip or normalize config option choice values """
 
             self._parsed_arguments: Optional[Namespace] = None
-            """ storing returned namespace of ArgumentParser.parse_args() call, used to retrieve command line args
-            """
-        self.load_cfg_files()
+            """ storing returned namespace of ArgumentParser.parse_args() call, used to retrieve command line args """
+
+            self.load_cfg_files()
+            if not self._main_cfg_fnam:
+                self._main_cfg_file = self._cfg_files[0]
+                self.dpo(f"ConsoleApp.__init__ has not found the main INI config file; default {self._main_cfg_file=}")
 
         self.registered_users: list[str] = []
         self.user_specific_cfg_vars: set[tuple[str, str]] = set()
@@ -625,7 +627,7 @@ class ConsoleApp(AppBase):
                 if cfg_fnam.endswith(INI_EXT) and os_path_isfile(cfg_fnam):
                     self._main_cfg_fnam = cfg_fnam
                     if config_modified:
-                        self._main_cfg_mod_time = os.path.getmtime(self._main_cfg_fnam)
+                        self._main_cfg_mod_time = os.path.getmtime(cfg_fnam)
                     break
 
             self._cfg_parser = instantiate_config_parser()      # new instance needed in case of renamed config var
@@ -934,8 +936,7 @@ class ConsoleApp(AppBase):
                         given_value = self._cfg_opt_val_stripper(given_value)
                     allowed_values = self.cfg_opt_choices[name]
                     if given_value not in allowed_values:
-                        raise ArgumentError(None,
-                                            f"Wrong {name} option value {given_value}; allowed are {allowed_values}")
+                        raise ArgumentError(None, f"'{name}' option has wrong {given_value=}; {allowed_values=}")
 
         is_main_app = main_app_instance() is self
         if is_main_app and not self.py_log_params and 'log_file' in self.cfg_options:
