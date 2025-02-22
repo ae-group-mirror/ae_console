@@ -28,8 +28,6 @@ def config_fna_vna_vva(request):
     def _setup_and_teardown(file_name="test_config" + CFG_EXT, var_name='test_config_var',
                             var_value: Any = 'test_value', additional_line: str = ""):
         file_name = normalize(file_name)
-        if os.path.sep not in file_name:
-            file_name = os.path.join(os.getcwd(), file_name)
         write_file(file_name, f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}\n{additional_line}", make_dirs=True)
 
         def _tear_down():               # using yield instead of finalizer does not execute the teardown part
@@ -85,8 +83,9 @@ class TestAeLogging:
     def test_cae_log_file_rotation(self, restore_app_env):
         log_file = 'test_cae_rot_log.log'
         cae = ConsoleApp('test_cae_log_file_rotation',
-                         multi_threading=True, log_file_name=log_file, log_file_size_max=.001,
-                         debug_level=DEBUG_LEVEL_VERBOSE)
+                         multi_threading=True,
+                         log_file_name=log_file,
+                         log_file_size_max=.001)
         try:
             sys.argv = [restore_app_env, ]
             file_name_chk = cae.get_opt('log_file')   # get_opt() has to be called at least once to create log file
@@ -107,7 +106,9 @@ class TestAeLogging:
                                                           var_value=dict(log_file_name='test_log_from_cfg.log'))
         log_msg = "test log message"
 
-        cae = ConsoleApp('test_ae_logging_params_dict_from_ini', additional_cfg_files=[file_name])
+        cae = ConsoleApp('test_ae_logging_params_dict_from_ini',
+                         additional_cfg_files=[file_name],
+                         debug_level=DEBUG_LEVEL_DISABLED)
         cfg_val = cae.get_var(var_name)
         try:
             assert cfg_val == var_val
@@ -433,7 +434,7 @@ class TestConfigOptions:
 
     def test_get_var_basics(self, cons_app):
         cae = cons_app
-        assert cae.get_var('debug_level') == DEBUG_LEVEL_DISABLED
+        assert cae.get_var('debug_level') == DEBUG_LEVEL_VERBOSE
         assert cae.get_var('un_declared_name') is None
 
     def test_get_var_env_options(self, cons_app):
@@ -828,7 +829,7 @@ class TestConfigOptions:
         assert cae.get_var(var_name) == ('a', 'b', 'c')
 
     def test_base_debug_level_add_opt_default(self, restore_app_env):
-        cae = ConsoleApp('test_add_opt_default', debug_level=DEBUG_LEVEL_VERBOSE)
+        cae = ConsoleApp('test_add_opt_default')
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
 
     def test_base_debug_level_short_option_value(self, restore_app_env):
@@ -1007,9 +1008,9 @@ class TestConsoleAppBasics:
 
     def test_debug_level_set_property(self, restore_app_env):
         cae = ConsoleApp()
-        assert cae.debug_level == DEBUG_LEVEL_DISABLED
-        cae.debug_level = DEBUG_LEVEL_VERBOSE
         assert cae.debug_level == DEBUG_LEVEL_VERBOSE
+        cae.debug_level = DEBUG_LEVEL_DISABLED
+        assert cae.debug_level == DEBUG_LEVEL_DISABLED
 
     def test_show_help(self, restore_app_env):
         cae = ConsoleApp('test_show_help')
@@ -1017,14 +1018,14 @@ class TestConsoleAppBasics:
 
     def test_sys_env_id(self, capsys, restore_app_env):
         sei = 'tSt'
-        cae = ConsoleApp('test_sys_env_id', sys_env_id=sei, debug_level=DEBUG_LEVEL_VERBOSE)
+        cae = ConsoleApp('test_sys_env_id', sys_env_id=sei)
         assert cae.sys_env_id == sei
         cae.po(sei)     # increase coverage
         out, err = capsys.readouterr()
         assert sei in out
 
         # special case for error code path coverage
-        ca2 = ConsoleApp('test_sys_env_id_COPY')
+        ca2 = ConsoleApp('test_sys_env_id_COPY', debug_level=DEBUG_LEVEL_DISABLED)
         assert ca2.sys_env_id == ''
         assert not ca2.get_opt('debug_level')
 
