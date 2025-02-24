@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import CFG_EXT, DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, os_user_name, write_file
+from ae.base import DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, os_user_name, write_file
 from ae.paths import normalize
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, print_out)
@@ -25,7 +25,7 @@ from ae.console import MAIN_SECTION_NAME, USER_NAME_MAX_LEN, config_value_string
 @pytest.fixture
 def config_fna_vna_vva(request):
     """ prepare config test files """
-    def _setup_and_teardown(file_name="test_config" + CFG_EXT, var_name='test_config_var',
+    def _setup_and_teardown(file_name="test_config" + INI_EXT, var_name='test_config_var',
                             var_value: Any = 'test_value', additional_line: str = ""):
         file_name = normalize(file_name)
         write_file(file_name, f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}\n{additional_line}", make_dirs=True)
@@ -109,6 +109,8 @@ class TestAeLogging:
         cae = ConsoleApp('test_ae_logging_params_dict_from_ini',
                          additional_cfg_files=[file_name],
                          debug_level=DEBUG_LEVEL_DISABLED)
+        assert cae._main_cfg_fnam == file_name
+
         cfg_val = cae.get_var(var_name)
         try:
             assert cfg_val == var_val
@@ -1238,8 +1240,8 @@ class TestUser:
         usr_vars = {(MAIN_SECTION_NAME, usr_var_name)}
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(usr_vars),
                                                            additional_line=f"{usr_var_name} = {usr_var_val!r}")
-        cae = ConsoleApp()
-        cae._main_cfg_fnam = file_name
+        cae = ConsoleApp(additional_cfg_files=[file_name])
+        assert cae._main_cfg_fnam == file_name
         cae._cfg_files.append(file_name)
         cae.load_cfg_files()
         cae.load_user_cfg()     # load cfg/usr manually: therefore no ConsoleApp(additional_cfg_files=(file_name, ))

@@ -224,7 +224,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.77'
+__version__ = '0.3.78'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -412,10 +412,9 @@ class ConsoleApp(AppBase):
             self.cfg_opt_choices: dict[str, Iterable] = {}                  #: all valid config option choices
             self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or {}          #: app-specific vars for init of cfg options
 
-            # use <app_name>.INI in the cwd as default (possibly be overwritten by :meth:`.load_cfg_files)
-            self._cfg_files: list = [os_path_join(os.getcwd(), self.app_name + INI_EXT)]
-            """ list of the default and all specified/added INI/CFG file paths """
-            self._main_cfg_fnam: str = ""                                   #: def main config file name
+            self._cfg_files: list = []                                      #: specified/added INI/CFG file paths
+            self._main_cfg_fnam: str = os_path_join(os.getcwd(), self.app_name + INI_EXT)
+            """ default main config file <app_name>.INI in the cwd (possibly overwritten by :meth:`.load_cfg_files) """
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
             warn_msg = self.add_cfg_files(*additional_cfg_files)
             if warn_msg:
@@ -426,10 +425,7 @@ class ConsoleApp(AppBase):
             self._parsed_arguments: Optional[Namespace] = None
             """ storing returned namespace of ArgumentParser.parse_args() call, used to retrieve command line args """
 
-            self.load_cfg_files()
-            if not self._main_cfg_fnam:
-                self._main_cfg_file = self._cfg_files[0]
-                self.dpo(f"ConsoleApp.__init__ has not found the main INI config file; default {self._main_cfg_file=}")
+        self.load_cfg_files()
 
         self.registered_users: list[str] = []
         self.user_specific_cfg_vars: set[tuple[str, str]] = set()
