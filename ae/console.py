@@ -224,7 +224,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.78'
+__version__ = '0.3.79'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -275,7 +275,6 @@ def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "
     :param env_vars:            OS shell environment variables to be used instead of the console/bash defaults.
     :return:                    return code of the executed command or 126 if execution raised any other exception.
     """
-    # args = command_line + " " + " ".join(extra_args) if shell else command_line.split() + list(extra_args)
     args = command_line + " " + " ".join(extra_args) if shell else shlex.split(command_line) + list(extra_args)
     ret_out = lines_output is not None  # == isinstance(lines_output, list)
     merge_err = bool(lines_output)      # == -''- and len(lines_output) > 0
@@ -605,6 +604,9 @@ class ConsoleApp(AppBase):
         :param section:         name of the config section.
         :param default_value:   default value to return if config value is not specified in any config file.
         :param cfg_parser:      ConfigParser instance to use (def=self._cfg_parser).
+        :return:                config var value. str values enclosed in single high commas will be returned without
+                                high commas. code block and multiline-strings enclosed in tripple high-commas will be
+                                returned with the high-commas.
         """
         with config_lock:
             cfg_parser = cfg_parser or self._cfg_parser
@@ -659,6 +661,10 @@ class ConsoleApp(AppBase):
                                 * **config option** with a name equal to the :paramref:`~get_variable.name` argument
                                   (only if the passed :paramref:`~get_variable.section` value is either empty,
                                   None or equal to :data:`MAIN_SECTION_NAME`).
+                                * **user-specific OS environment variable** with a matching snake+upper-cased name,
+                                  compiled from the :paramref:`~get_variable.section` argument, the string 'usr_id',
+                                  the :attr:`~ConsoleApp.user_id` and :paramref:`~get_variable.name` argument,
+                                  and all four parts separated by an underscore character.
                                 * **OS environment variable** with a matching snake+upper-cased name, compiled from
                                   the :paramref:`~get_variable.section` and :paramref:`~get_variable.name` arguments,
                                   separated by an underscore character.
@@ -672,13 +678,22 @@ class ConsoleApp(AppBase):
         section = section or MAIN_SECTION_NAME
         if name in self.cfg_options and section == MAIN_SECTION_NAME:
             val = self.cfg_options[name].value
+
         else:
-            val = env_str(section + '_' + name, convert_name=True)
+            if name != 'user_id':
+                sec = self.user_section(section, name)
+                val = env_str(sec + '_' + name, convert_name=True)
+            else:
+                sec = section
+                val = None
+            if val is None:
+                val = env_str(section + '_' + name, convert_name=True)
+
             if val is None:
                 lit = Literal(literal_or_value=default_value, value_type=value_type, name=name)  # used for convert/eval
-                lit.value = self._get_cfg_parser_val(name, section=self.user_section(section, name),
-                                                     default_value=lit.value, cfg_parser=cfg_parser)
+                lit.value = self._get_cfg_parser_val(name, section=sec, default_value=lit.value, cfg_parser=cfg_parser)
                 val = lit.value
+
         return val
 
     get_var = get_variable      #: alias of method :meth:`.get_variable`
@@ -979,12 +994,7 @@ class ConsoleApp(AppBase):
         """ load users configuration. """
         with config_lock:
             if not self.user_id:
-                usr_id = self.cfg_options.get('user_id')
-                if usr_id:
-                    usr_id = usr_id.value
-                else:
-                    usr_id = self._get_cfg_parser_val('user_id', MAIN_SECTION_NAME, default_value=os_user_name())
-                self.user_id = usr_id
+                self.user_id = self.get_variable('user_id', default_value=os_user_name())
 
             self.registered_users = self.get_var('registered_users', default_value=[])
             self.user_specific_cfg_vars = self.get_var('user_specific_cfg_vars',
