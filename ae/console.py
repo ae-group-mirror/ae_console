@@ -224,7 +224,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.79'
+__version__ = '0.3.80'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of main config section
@@ -1085,6 +1085,7 @@ class ConsoleApp(AppBase):
             app_env_info['PATH_PLACEHOLDERS'] = PATH_PLACEHOLDERS
             if self.verbose:
                 app_env_info["sys env data"] = sys_env_dict()
+                app_env_info["sys env data"]['user name'] += "/" + self.user_id
 
         return app_env_info
 
