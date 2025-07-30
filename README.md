@@ -1,16 +1,16 @@
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae V0.3.95 -->
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae V0.3.96 -->
 <!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.tpl_namespace_root V0.3.14 -->
-# console 0.3.81
+# console 0.3.82
 
 [![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_console/develop?logo=python)](
     https://gitlab.com/ae-group/ae_console)
 [![LatestPyPIrelease](
-    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.80?logo=python)](
-    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.80)
+    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.81?logo=python)](
+    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.81)
 [![PyPIVersions](https://img.shields.io/pypi/v/ae_console)](
     https://pypi.org/project/ae-console/#history)
 
->ae_console module 0.3.81.
+>ae namespace module portion console: console application environment.
 
 [![Coverage](https://ae-group.gitlab.io/ae_console/coverage.svg)](
     https://ae-group.gitlab.io/ae_console/coverage/index.html)
