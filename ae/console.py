@@ -5,8 +5,6 @@ console application environment
 an instance of the :class:`ConsoleApp` class is representing a python application with dynamically configurable logging,
 debugging features (inherited from :class:`~ae.core.AppBase`), command line arguments and config files and options.
 
-the helper function :func:`sh_exec` provided by this portion simplifies the execution of shell/console commands.
-
 
 define command line arguments and options
 -----------------------------------------
@@ -205,17 +203,15 @@ revoke which config variables the app is storing individually for each user.
 """
 import os
 import datetime
-import shlex
-import subprocess
 import threading
 
-from typing import Any, Callable, Iterable, Optional, Sequence, Type, Union
+from typing import Any, Callable, Iterable, Optional, Type, Union
 from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
 
 from ae.base import (                                                                       # type: ignore
     CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
-    dummy_function, env_str, instantiate_config_parser, norm_name, os_path_isfile, os_path_join,
+    env_str, instantiate_config_parser, norm_name, os_path_isfile, os_path_join,
     os_user_name, sys_env_dict, sys_env_text)
 from ae.paths import PATH_PLACEHOLDERS, normalize, Collector  # type: ignore
 # noinspection PyProtectedMember
@@ -224,13 +220,10 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.81'
+__version__ = '0.3.82'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
-
-STDERR_BEG_MARKER = "vvv   STDERR   vvv"        #: begin of stderr lines in :paramref:`ae.console.sh_exec.lines_output`
-STDERR_END_MARKER = "^^^   STDERR   ^^^"        #: end of stderr lines in :paramref:`ae.console.sh_exec.lines_output`
 
 USER_NAME_MAX_LEN = 12                          #: maximum length of a `username/id <ae.console.ConsoleApp.user_id>`
 
@@ -254,60 +247,6 @@ def config_value_string(value: Any) -> str:
     else:
         str_val = repr(value)
     return str_val.replace('%', '%%')
-
-
-def sh_exec(command_line: str, extra_args: Sequence = (), console_input: str = "",
-            lines_output: Optional[list[str]] = None, cae: Optional[Any] = None, shell: bool = False,
-            env_vars: Optional[dict[str, str]] = None) -> int:
-    """ execute command in the current working directory of the OS console/shell.
-
-    :param command_line:        command line string to execute on the console/shell. could contain command line args
-                                separated by whitespace characters (alternatively use :paramref:`~sh_exec.extra_args`).
-    :param extra_args:          optional sequence of extra command line arguments.
-    :param console_input:       optional string to be sent to the stdin stream of the console/shell.
-    :param lines_output:        optional list to be extended with the lines printed to stdout/stderr on execution.
-                                by passing an empty list, the stdout and stderr streams/pipes will be separated,
-                                resulting in having the stderr output lines at the end of the list, enclosed by
-                                the list items :data:`STDERR_BEG_MARKER` and :data:`STDERR_END_MARKER`.
-    :param cae:                 optional :class:`~ae.console.ConsoleApp` instance, only used for logging. to suppress
-                                any logging output, pass :data:`~ae.base.UNSET`.
-    :param shell:               pass True to execute command in the default OS shell (see :meth:`subprocess.run`).
-    :param env_vars:            OS shell environment variables to be used instead of the console/bash defaults.
-    :return:                    return code of the executed command or 126 if execution raised any other exception.
-    """
-    args = command_line + " " + " ".join(extra_args) if shell else shlex.split(command_line) + list(extra_args)
-    ret_out = lines_output is not None  # == isinstance(lines_output, list)
-    merge_err = bool(lines_output)      # == -''- and len(lines_output) > 0
-    print_out = cae.po if cae else print if cae is None else dummy_function
-    debug_out = cae.dpo if cae else dummy_function
-    debug_out(f"    # executing at {os.getcwd()}: {args}")
-
-    result: Union[subprocess.CompletedProcess, subprocess.CalledProcessError]   # having: stdout/stderr/returncode
-    try:
-        result = subprocess.run(args,
-                                stdout=subprocess.PIPE if ret_out else None,
-                                stderr=subprocess.STDOUT if merge_err else subprocess.PIPE if ret_out else None,
-                                input=console_input.encode(),
-                                check=True,
-                                shell=shell,
-                                env=env_vars)
-    except subprocess.CalledProcessError as ex:                     # pragma: no cover
-        debug_out(f"****  subprocess.run({args=}) returned non-zero exit code {ex.returncode}; {ex=}")
-        result = ex
-    except Exception as ex:                                         # pylint: disable=broad-except  # pragma: no cover
-        print_out(f"****  subprocess.run({args}) raised exception {ex}")
-        return 126
-
-    if ret_out:
-        assert isinstance(lines_output, list), "silly mypy doesn't recognize ret_out"
-        if result.stdout:
-            lines_output.extend([line for line in result.stdout.decode().split(os.linesep) if line])
-        if not merge_err and result.stderr:
-            lines_output.append(STDERR_BEG_MARKER)
-            lines_output.extend([line for line in result.stderr.decode().split(os.linesep) if line])
-            lines_output.append(STDERR_END_MARKER)
-
-    return result.returncode
 
 
 class ConsoleApp(AppBase):
@@ -373,7 +312,7 @@ class ConsoleApp(AppBase):
                                           optionally defined OS environment variable `AE_OPTIONS_SYS_ENV_ID`
                                           will be used as default.
 
-        :param debug_level:             default debug level to set the instance attribute
+        :param debug_level:             default debug level to set the instance property
                                         :attr:`~ae.core.AppBase.debug_level`.
 
                                         the default value of this argument is :data:`~ae.core.DEBUG_LEVEL_DISABLED`.
@@ -431,7 +370,7 @@ class ConsoleApp(AppBase):
         self._init_default_user_cfg_vars()
         self.load_user_cfg()
 
-        self._debug_level = self.get_var('debug_level', default_value=debug_level)
+        self._debug_level = self.get_variable('debug_level', default_value=debug_level)
 
         log_file_name = self._init_logging(logging_params)
 
@@ -484,18 +423,18 @@ class ConsoleApp(AppBase):
         """
         log_file_name = ""
 
-        cfg_logging_params = self.get_var('logging_params')
+        cfg_logging_params = self.get_variable('logging_params')
         if cfg_logging_params:
             logging_params = cfg_logging_params
             if 'py_logging_params' not in logging_params:                   # .. there then cfg py_logging params
                 log_file_name = logging_params.get('log_file_name', '')     # .. then cfg logging_params log file
 
         if 'py_logging_params' not in logging_params and not log_file_name:
-            lcd = self.get_var('py_logging_params')
+            lcd = self.get_variable('py_logging_params')
             if lcd:
                 logging_params['py_logging_params'] = lcd                   # .. then cfg py_logging params directly
             else:
-                log_file_name = self.get_var('log_file', default_value=logging_params.get('log_file_name'))
+                log_file_name = self.get_variable('log_file', default_value=logging_params.get('log_file_name'))
                 logging_params['log_file_name'] = log_file_name             # .. finally cfg log_file / log file arg
 
         if logging_params.get('log_file_name'):                             # if log file path: replace placeholders
@@ -603,7 +542,7 @@ class ConsoleApp(AppBase):
         :param default_value:   default value to return if this config value is not specified in any config file.
         :param cfg_parser:      ConfigParser instance to use (def=self._cfg_parser).
         :return:                config var value. str values enclosed in single high commas will be returned without
-                                high commas. code blocks and multiline-strings enclosed in tripple high commas will be
+                                high commas. code blocks and multiline-strings enclosed in triple high commas will be
                                 returned with the high commas.
         """
         with config_lock:
@@ -673,11 +612,12 @@ class ConsoleApp(AppBase):
 
         this method has an alias named :meth:`get_var`.
         """
+        val = None
         section = section or MAIN_SECTION_NAME
         if name in self.cfg_options and section == MAIN_SECTION_NAME:
             val = self.cfg_options[name].value
 
-        else:
+        if val is None or val is UNSET:
             if name != 'user_id':
                 sec = self.user_section(section, name)
                 val = env_str(sec + '_' + name, convert_name=True)
@@ -994,9 +934,9 @@ class ConsoleApp(AppBase):
             if not self.user_id:
                 self.user_id = self.get_variable('user_id', default_value=os_user_name())
 
-            self.registered_users = self.get_var('registered_users', default_value=[])
-            self.user_specific_cfg_vars = self.get_var('user_specific_cfg_vars',
-                                                       default_value=self.user_specific_cfg_vars)
+            self.registered_users = self.get_variable('registered_users', default_value=[])
+            self.user_specific_cfg_vars = self.get_variable('user_specific_cfg_vars',
+                                                            default_value=self.user_specific_cfg_vars)
 
     def register_user(self, new_user_id: str = "", reset_cfg_vars: bool = False, set_as_default: bool = True) -> bool:
         """ register/reset the specified or current user, creating/copying a new set of user-specific config vars.
@@ -1024,7 +964,7 @@ class ConsoleApp(AppBase):
                 current_user_id = self.user_id
                 for section, var_name in self.user_specific_cfg_vars:
                     self.user_id = ''
-                    value = self.get_var(var_name, section)
+                    value = self.get_variable(var_name, section)
                     self.user_id = user_id
                     self.set_var(var_name, value, section=section)
                 self.user_id = current_user_id

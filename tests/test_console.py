@@ -19,7 +19,7 @@ from ae.paths import normalize
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, main_app_instance, print_out)
 
-from ae.console import MAIN_SECTION_NAME, USER_NAME_MAX_LEN, config_value_string, sh_exec, ConsoleApp
+from ae.console import MAIN_SECTION_NAME, USER_NAME_MAX_LEN, config_value_string, ConsoleApp
 
 
 @pytest.fixture
@@ -111,10 +111,10 @@ class TestAeLogging:
                          debug_level=DEBUG_LEVEL_DISABLED)
         assert cae._main_cfg_fnam == file_name
 
-        cfg_val = cae.get_var(var_name)
+        cfg_val = cae.get_variable(var_name)
         try:
             assert cfg_val == var_val
-            assert cae.get_var(var_name) == var_val
+            assert cae.get_variable(var_name) == var_val
             assert cae._log_file_name == os.path.realpath(cfg_val['log_file_name'])
             assert not os.path.exists(cfg_val['log_file_name'])
 
@@ -242,7 +242,7 @@ class TestPythonLogging:
 
         cae = ConsoleApp('test_python_logging_params_dict_basic_from_ini', additional_cfg_files=[file_name])
 
-        cfg_val = cae.get_var(var_name)
+        cfg_val = cae.get_variable(var_name)
         assert cfg_val == var_val
 
         assert cae.py_log_params == var_val
@@ -406,17 +406,17 @@ class TestConfigOptions:
         val = 'any_tst_val'
         section_name = 'tstSection'
         assert cae.set_var(var_name, val, cfg_fnam=file_name, section=section_name) == ""
-        assert val == cae.get_var(var_name, section=section_name)
+        assert val == cae.get_variable(var_name, section=section_name)
 
         assert cae.del_section(section_name, cfg_fnam=file_name) == ""
 
-        assert cae.get_var(var_name, section=section_name) is None
+        assert cae.get_variable(var_name, section=section_name) is None
 
     def test_del_section_not_exists(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
         cae = ConsoleApp('test_del_section_not_exists', additional_cfg_files=[file_name])
         section_name = 'tstNotExistingSection'
-        assert cae.get_var(var_name, section=section_name) is None
+        assert cae.get_variable(var_name, section=section_name) is None
 
         err_msg = cae.del_section(section_name, cfg_fnam=file_name)
 
@@ -436,26 +436,26 @@ class TestConfigOptions:
 
     def test_get_var_basics(self, cons_app):
         cae = cons_app
-        assert cae.get_var('debug_level') == DEBUG_LEVEL_VERBOSE
-        assert cae.get_var('un_declared_name') is None
+        assert cae.get_variable('debug_level') == DEBUG_LEVEL_VERBOSE
+        assert cae.get_variable('un_declared_name') is None
 
     def test_get_var_env_options(self, cons_app):
         cae = cons_app
         vn = 'testVarName'
-        assert cae.get_var(vn) is None
+        assert cae.get_variable(vn) is None
 
         vv = 'testVarValue'
         os.environ['AE_OPTIONS_TEST_VAR_NAME'] = vv
-        assert cae.get_var(vn) == vv
+        assert cae.get_variable(vn) == vv
 
     def test_get_var_env_section(self, cons_app):
         cae = cons_app
         vn = 'testVarName'
-        assert cae.get_var(vn, section='aeSystems') is None
+        assert cae.get_variable(vn, section='aeSystems') is None
 
         vv = 'testVarValue'
         os.environ['AE_SYSTEMS_TEST_VAR_NAME'] = vv
-        assert cae.get_var(vn, section='aeSystems') == vv
+        assert cae.get_variable(vn, section='aeSystems') == vv
 
     @skip_gitlab_ci     # skip on gitlab because it does not provide user/home ~/.config folder
     def test_get_var_file_order(self, restore_app_env, config_fna_vna_vva):
@@ -467,14 +467,14 @@ class TestConfigOptions:
         assert usr_file != cwd_file
         cae.add_cfg_files()
         cae.load_cfg_files()
-        assert cae.get_var(var_name) == usr_value                       # usr variable overwrite cwd variable
+        assert cae.get_variable(var_name) == usr_value                       # usr variable overwrite cwd variable
 
         app_path = normalize("{ado}")   # home/Documents/test will not be removed after test run!
         app_file, _, app_value = config_fna_vna_vva(file_name='{ado}/test' + INI_EXT, var_value='ado')
         assert app_file != cwd_file and app_file != usr_file
         cae.add_cfg_files()
         cae.load_cfg_files()
-        assert cae.get_var(var_name) == app_value                       # usr_app variable overwrites cwd+usr variables
+        assert cae.get_variable(var_name) == app_value                       # usr_app variable overwrites cwd+usr variables
 
     def test_set_var_basics(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(file_name='test' + INI_EXT)
@@ -488,19 +488,19 @@ class TestConfigOptions:
 
         val = 'test_value'
         assert not cae.set_var(var_name, val)
-        assert cae.get_var(var_name) == val
+        assert cae.get_variable(var_name) == val
 
         val = ('test_val1', 'test_val2')
         assert not cae.set_var(var_name, val)
-        assert cae.get_var(var_name) == repr(val)
+        assert cae.get_variable(var_name) == repr(val)
 
         val = datetime.datetime.now()
         assert not cae.set_var(var_name, val)
-        assert cae.get_var(var_name) == val.strftime(DATE_TIME_ISO)
+        assert cae.get_variable(var_name) == val.strftime(DATE_TIME_ISO)
 
         val = datetime.date.today()
         assert not cae.set_var(var_name, val)
-        assert cae.get_var(var_name) == val.strftime(DATE_ISO)
+        assert cae.get_variable(var_name) == val.strftime(DATE_ISO)
 
     def test_set_var_without_ini(self, restore_app_env):
         var_name = 'test_config_var'
@@ -512,19 +512,19 @@ class TestConfigOptions:
 
         val = 'test_value'
         assert cae.set_var(var_name, val)        # will be set, but returning error because test.ini does not exist
-        assert cae.get_var(var_name) == val
+        assert cae.get_variable(var_name) == val
 
         val = ('test_val1', 'test_val2')
         assert cae.set_var(var_name, val)  # will be set, but returning error because test.ini does not exist
-        assert cae.get_var(var_name) == repr(val)
+        assert cae.get_variable(var_name) == repr(val)
 
         val = datetime.datetime.now()
         assert cae.set_var(var_name, val)  # will be set, but returning error because test.ini does not exist
-        assert cae.get_var(var_name) == val.strftime(DATE_TIME_ISO)
+        assert cae.get_variable(var_name) == val.strftime(DATE_TIME_ISO)
 
         val = datetime.date.today()
         assert cae.set_var(var_name, val)  # will be set, but returning error because test.ini does not exist
-        assert cae.get_var(var_name) == val.strftime(DATE_ISO)
+        assert cae.get_variable(var_name) == val.strftime(DATE_ISO)
 
     def test_set_var_file_error(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
@@ -550,11 +550,11 @@ class TestConfigOptions:
         val = 'test_value'
         assert not cae.set_var(var_name, val, cfg_fnam=file_name)
 
-        cfg_val = cae.get_var(var_name)
+        cfg_val = cae.get_variable(var_name)
         assert cfg_val == val
 
         cae.load_cfg_files()
-        cfg_val = cae.get_var(var_name)
+        cfg_val = cae.get_variable(var_name)
         assert cfg_val == val
 
     def test_set_var_no_option(self, config_fna_vna_vva, restore_app_env):
@@ -564,7 +564,7 @@ class TestConfigOptions:
         section_name = 'tstSection'
         assert not cae.set_var(var_name, val, cfg_fnam=file_name, section=section_name)
 
-        cfg_val = cae.get_var(var_name, section=section_name)
+        cfg_val = cae.get_variable(var_name, section=section_name)
         assert cfg_val == val
 
     def test_set_var_with_rename(self, config_fna_vna_vva, restore_app_env):
@@ -574,9 +574,9 @@ class TestConfigOptions:
         new_var_name = 'new_tst_var_name'
         assert not cae.set_var(new_var_name, val, cfg_fnam=file_name, old_name=var_name)
 
-        cfg_val = cae.get_var(var_name)
+        cfg_val = cae.get_variable(var_name)
         assert cfg_val is None
-        cfg_val = cae.get_var(new_var_name)
+        cfg_val = cae.get_variable(new_var_name)
         assert cfg_val == val
 
     def test_multiple_option_single_char(self, restore_app_env):
@@ -619,9 +619,9 @@ class TestConfigOptions:
 
     def test_config_default_bool(self, restore_app_env):
         cae = ConsoleApp('test_config_defaults')
-        cfg_val = cae.get_var('not_existing_config_var', default_value=False)
+        cfg_val = cae.get_variable('not_existing_config_var', default_value=False)
         assert cfg_val is False
-        cfg_val = cae.get_var('not_existing_config_var2', value_type=bool)
+        cfg_val = cae.get_variable('not_existing_config_var2', value_type=bool)
         assert cfg_val is False
 
     def test_long_option_str_value(self, restore_app_env):
@@ -755,80 +755,80 @@ class TestConfigOptions:
         opt_val = 'testString'
         file_name, var_name, _ = config_fna_vna_vva(var_value="''''" + opt_val + "''''")
         cae = ConsoleApp('test_config_str_eval', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == opt_val
+        assert cae.get_variable(var_name) == opt_val
 
     def test_config_str_eval_double_quote(self, config_fna_vna_vva, restore_app_env):
         opt_val = 'testString'
         file_name, var_name, _ = config_fna_vna_vva(var_value='""""' + opt_val + '""""')
         cae = ConsoleApp('test_config_str_eval', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == opt_val
+        assert cae.get_variable(var_name) == opt_val
 
     def test_config_bool_str(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='True')
         cae = ConsoleApp('test_config_bool_str', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name, value_type=bool) is True
+        assert cae.get_variable(var_name, value_type=bool) is True
 
     def test_config_bool_eval(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='"""1 == 0"""')
         cae = ConsoleApp('test_config_bool_eval', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) is False
+        assert cae.get_variable(var_name) is False
 
     def test_config_bool_eval_true(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='"""6 == 6"""')
         cae = ConsoleApp('test_config_bool_eval', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) is True
+        assert cae.get_variable(var_name) is True
 
     def test_config_date_str(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='2012-12-24')
         cae = ConsoleApp('test_config_date_str', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name, value_type=datetime.date) == datetime.date(year=2012, month=12, day=24)
+        assert cae.get_variable(var_name, value_type=datetime.date) == datetime.date(year=2012, month=12, day=24)
 
     def test_config_date_eval(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='"""datetime.date(year=2012, month=12, day=24)"""')
         cae = ConsoleApp('test_config_date_str', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == datetime.date(year=2012, month=12, day=24)
+        assert cae.get_variable(var_name) == datetime.date(year=2012, month=12, day=24)
 
     def test_config_datetime_str(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='2012-12-24 7:8:0.0')
         cae = ConsoleApp('test_config_date_str', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name, value_type=datetime.datetime) \
+        assert cae.get_variable(var_name, value_type=datetime.datetime) \
             == datetime.datetime(year=2012, month=12, day=24, hour=7, minute=8)
 
     def test_config_datetime_eval(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(
             var_value='"""datetime.datetime(year=2012, month=12, day=24, hour=7, minute=8)"""')
         cae = ConsoleApp('test_config_datetime_eval', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == datetime.datetime(year=2012, month=12, day=24, hour=7, minute=8)
+        assert cae.get_variable(var_name) == datetime.datetime(year=2012, month=12, day=24, hour=7, minute=8)
 
     def test_config_list_str(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='[1, 2, 3]')
         cae = ConsoleApp('test_config_list_str', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == [1, 2, 3]
+        assert cae.get_variable(var_name) == [1, 2, 3]
 
     def test_config_list_eval(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='"""[1, 2, 3]"""')
         cae = ConsoleApp('test_config_list_eval', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == [1, 2, 3]
+        assert cae.get_variable(var_name) == [1, 2, 3]
 
     def test_config_dict_str(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value="{'a': 1, 'b': 2, 'c': 3}")
         cae = ConsoleApp('test_config_dict_str', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == {'a': 1, 'b': 2, 'c': 3}
+        assert cae.get_variable(var_name) == {'a': 1, 'b': 2, 'c': 3}
 
     def test_config_dict_eval(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='"""{"a": 1, "b": 2, "c": 3}"""')
         cae = ConsoleApp('test_config_dict_eval', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == {'a': 1, 'b': 2, 'c': 3}
+        assert cae.get_variable(var_name) == {'a': 1, 'b': 2, 'c': 3}
 
     def test_config_tuple_str(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value="('a', 'b', 'c')")
         cae = ConsoleApp('test_config_tuple_str', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == ('a', 'b', 'c')
+        assert cae.get_variable(var_name) == ('a', 'b', 'c')
 
     def test_config_tuple_eval(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva(var_value='"""("a", "b", "c")"""')
         cae = ConsoleApp('test_config_tuple_eval', additional_cfg_files=[file_name])
-        assert cae.get_var(var_name) == ('a', 'b', 'c')
+        assert cae.get_variable(var_name) == ('a', 'b', 'c')
 
     def test_base_debug_level_add_opt_default(self, restore_app_env):
         cae = ConsoleApp('test_add_opt_default')
@@ -935,13 +935,13 @@ class TestConfigOptions:
         assert cae.is_main_cfg_file_modified()
 
         # cfg_val has already new value (NEW_test_value) because parser instance got reloaded
-        cfg_val = cae.get_var(var_name)
+        cfg_val = cae.get_variable(var_name)
         assert cfg_val != old_var_val
         assert cfg_val == new_var_val
         assert cae.is_main_cfg_file_modified()
 
         cae.load_cfg_files()
-        cfg_val = cae.get_var(var_name)
+        cfg_val = cae.get_variable(var_name)
         assert cfg_val == new_var_val
 
         assert not cae.is_main_cfg_file_modified()
@@ -1060,70 +1060,6 @@ class TestConsoleAppBasics:
 
     def test_app_instances_reset2(self):
         assert main_app_instance() is None
-
-
-RETURN_CODE = 123456789
-STDOUT_LINE = b'std___out'
-STDERR_LINE = b'std___err'
-
-
-def subprocess_run_return(*_args, **_kwargs):
-    """ mock to simulate subprocess.run return object. """
-    class _Return:
-        returncode = RETURN_CODE
-        stdout = STDOUT_LINE
-        stderr = STDERR_LINE
-    return _Return()
-
-
-class TestConsoleExecute:
-    @patch.object(subprocess, 'run', autospec=True)
-    def test_sh_exec_args(self, mock_method):
-        cmd_line = "cmd arg1 arg2"
-        extra_args = ['extra_arg1', 'extra_arg2']
-
-        sh_exec(cmd_line, extra_args)
-        mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'', check=True, shell=False, env=None)
-
-        sh_exec(cmd_line, extra_args, console_input='con_inp')
-        mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'con_inp',
-            check=True, shell=False, env=None)
-
-        sh_exec(cmd_line, extra_args, lines_output=[])
-        mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'',
-            check=True, shell=False, env=None)
-
-        sh_exec(cmd_line, extra_args, console_input='con_inp', lines_output=[])
-        mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, input=b'con_inp',
-            check=True, shell=False, env=None)
-
-        env_vars = {'A': "1", 'C': "tst_string value"}
-        sh_exec(cmd_line, extra_args, env_vars=env_vars)
-        mock_method.assert_called_with(
-            cmd_line.split(" ") + extra_args, stdout=None, stderr=None, input=b'',
-            check=True, shell=False, env=env_vars)
-
-    @patch.object(subprocess, 'run', new=subprocess_run_return)
-    def test_sh_exec_run_returned_values(self):
-        cmd_line = "cmd arg1 arg2"
-        extra_args = ['extra_arg1', 'extra_arg2']
-        lines_output = []
-
-        assert sh_exec(cmd_line, extra_args, lines_output=lines_output) == RETURN_CODE
-        assert STDOUT_LINE.decode() in lines_output
-        assert STDERR_LINE.decode() in lines_output
-        assert sum("STDERR" in _ for _ in lines_output) == 2
-
-    @patch.object(subprocess, 'run', new_callable=subprocess_run_return)
-    def test_sh_exec_run_exception(self, _return_obj):
-        cmd_line = "cmd arg1 arg2"
-        extra_args = ['extra_arg1', 'extra_arg2']
-        lines_output = []
-        assert sh_exec(cmd_line, extra_args, lines_output=lines_output) == 126     # _Return() is not callable exc
 
 
 # noinspection PyUnusedLocal
@@ -1254,9 +1190,9 @@ class TestUser:
         assert cae.user_id == os_usr_id
 
         cae.user_id = new_usr_id
-        assert cae.get_var(usr_var_name) == usr_var_val
+        assert cae.get_variable(usr_var_name) == usr_var_val
         cae.user_id = os_usr_id
-        assert cae.get_var(usr_var_name) == usr_var_val
+        assert cae.get_variable(usr_var_name) == usr_var_val
 
         cae.register_user()     # == cae.register_user(new_user_id=os_usr_id, set_as_default=True)
 
@@ -1265,26 +1201,26 @@ class TestUser:
         assert cae.user_id == os_usr_id
 
         cae.user_id = new_usr_id
-        assert cae.get_var(usr_var_name) == usr_var_val
+        assert cae.get_variable(usr_var_name) == usr_var_val
         cae.user_id = os_usr_id
-        assert cae.get_var(usr_var_name) == usr_var_val
+        assert cae.get_variable(usr_var_name) == usr_var_val
 
         os_usr_chg_val = 'os_usr_chg_val'
         cae.set_var(usr_var_name, os_usr_chg_val, cfg_fnam=file_name)
 
         cae.user_id = new_usr_id
-        assert cae.get_var(usr_var_name) == usr_var_val
+        assert cae.get_variable(usr_var_name) == usr_var_val
         cae.user_id = os_usr_id
-        assert cae.get_var(usr_var_name) == os_usr_chg_val
+        assert cae.get_variable(usr_var_name) == os_usr_chg_val
 
         # test user data on re-registration get untouched
         cae.register_user(new_user_id=os_usr_id)
-        assert cae.get_var(usr_var_name) == os_usr_chg_val
+        assert cae.get_variable(usr_var_name) == os_usr_chg_val
         assert len(cae.registered_users) == 1
         assert os_usr_id in cae.registered_users
         # .. until reset_cfg_vars get specified
         cae.register_user(new_user_id=os_usr_id, reset_cfg_vars=True)
-        assert cae.get_var(usr_var_name) == usr_var_val
+        assert cae.get_variable(usr_var_name) == usr_var_val
 
         cae.register_user(new_user_id=new_usr_id, set_as_default=False)
         assert len(cae.registered_users) == 2
