@@ -1,4 +1,4 @@
-<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.tpl_project V0.3.36 -->
+<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls V0.3.45 -->
 # using this package securely
 
 ## reporting security issues

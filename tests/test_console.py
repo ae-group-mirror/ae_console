@@ -3,7 +3,6 @@ import datetime
 import logging
 import os
 import pytest
-import subprocess
 import sys
 import threading
 import time
@@ -57,8 +56,21 @@ class TestHelpers:
         assert config_value_string(value) == value.strftime(DATE_TIME_ISO)
 
 
-# noinspection PyUnusedLocal
-class TestAeLogging:
+class TestLogging:      # more detailed logging tests are done in unit tests of :mod:`ae.core`
+    def test_logging_params_dict_basic_from_cfg(self, config_fna_vna_vva, restore_app_env):
+        file_name, var_name, var_val = config_fna_vna_vva(var_name='py_logging_params',
+                                                          var_value=dict(version=1,
+                                                                         disable_existing_loggers=False))
+
+        cae = ConsoleApp('test_python_logging_params_dict_basic_from_ini', additional_cfg_files=[file_name])
+
+        cfg_val = cae.get_var(var_name)
+        assert cfg_val == var_val
+
+        assert cae.py_log_params == var_val
+
+        logging.shutdown()
+
     def test_open_log_file_with_suppressed_stdout(self, capsys, restore_app_env):
         cae = ConsoleApp('test_log_file_rotation', suppress_stdout=True)
         assert cae.suppress_stdout is True
@@ -231,166 +243,6 @@ class TestAeLogging:
         assert main_app_instance() is None
 
 
-# noinspection PyUnusedLocal
-class TestPythonLogging:
-    """ test python logging module support
-    """
-    def test_logging_params_dict_basic_from_cfg(self, config_fna_vna_vva, restore_app_env):
-        file_name, var_name, var_val = config_fna_vna_vva(var_name='py_logging_params',
-                                                          var_value=dict(version=1,
-                                                                         disable_existing_loggers=False))
-
-        cae = ConsoleApp('test_python_logging_params_dict_basic_from_ini', additional_cfg_files=[file_name])
-
-        cfg_val = cae.get_variable(var_name)
-        assert cfg_val == var_val
-
-        assert cae.py_log_params == var_val
-
-        logging.shutdown()
-
-#     def test_app_instances_reset1(self):
-#         assert main_app_instance() is None
-#
-#     def test_logging_params_dict_console_from_init(self, restore_app_env):
-#         var_val = dict(version=1,
-#                        disable_existing_loggers=False,
-#                        handlers=dict(console={'class': 'logging.StreamHandler',
-#                                               'level': logging.INFO}))
-#         print(str(var_val))
-#
-#         cae = ConsoleApp('test_python_logging_params_dict_console', py_logging_params=var_val)
-#
-#         assert cae.py_log_params == var_val
-#         logging.shutdown()
-#
-#     def test_logging_params_dict_complex(self, restore_app_env):
-#         log_file = 'test_py_log_complex.log'
-#         entry_prefix = "TEST LOG ENTRY "
-#
-#         var_val = dict(version=1,
-#                        disable_existing_loggers=False,
-#                        handlers=dict(console={'class': 'logging.handlers.RotatingFileHandler',
-#                                               'level': logging.INFO,
-#                                               'filename': log_file,
-#                                               'maxBytes': 33,
-#                                               'backupCount': 63}),
-#                        loggers={'root': dict(handlers=['console']),
-#                                 'ae': dict(handlers=['console']),
-#                                 'ae.console': dict(handlers=['console'])}
-#                        )
-#         print(str(var_val))
-#
-#         cae = ConsoleApp('test_python_logging_params_dict_file', py_logging_params=var_val)
-#
-#         assert cae.py_log_params == var_val
-#
-#         root_logger = logging.getLogger()   # 'root'
-#         ae_logger = logging.getLogger('ae')
-#         ae_cae_logger = logging.getLogger('ae.console')
-#
-#         # ConsoleApp print_out
-#         try:
-#             log_text = entry_prefix + "0 print_out"
-#             cae.po(log_text)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0] == ""
-#
-#         try:
-#             log_text = entry_prefix + "0 print_out root"
-#             cae.po(log_text, logger=root_logger)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
-#
-#         try:
-#             log_text = entry_prefix + "0 print_out ae"
-#             cae.po(log_text, logger=ae_logger)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
-#
-#         try:
-#             log_text = entry_prefix + "0 print_out ae_cae"
-#             cae.po(log_text, logger=ae_cae_logger)
-#         finally:
-#             logging.shutdown()
-#             # multiple log files because log text has 34 bytes but RotatingFileHandler maxbytes is 33
-#             files_contents = delete_files(log_file, ret_type='contents')
-#             assert len(files_contents) > 1
-#             assert any(_.endswith(log_text + os.linesep) for _ in files_contents)
-#
-#         # logging
-#         try:
-#             logging.info(entry_prefix + "1 info")       # will NOT be added to log
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file) == 0
-#
-#         try:
-#             logging.debug(entry_prefix + "2 debug")     # NOT logged
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file) == 0
-#
-#         try:
-#             log_text = entry_prefix + "3 warning"
-#             logging.warning(log_text)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
-#
-#         try:
-#             log_text = entry_prefix + "4 error logging"
-#             logging.error(log_text)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
-#
-#         # loggers
-#         try:
-#             log_text = entry_prefix + "4 error root"
-#             root_logger.error(log_text)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
-#
-#         try:
-#             log_text = entry_prefix + "4 error ae"
-#             ae_logger.error(log_text)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
-#
-#         try:
-#             log_text = entry_prefix + "4 error ae_cae"
-#             ae_cae_logger.error(log_text)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
-#
-#         # ConsoleAppEnv dpo
-#         sys.argv = ['tl_cdc']  # sys.argv has to be set to allow get_option('debug_level') calls done by debug_out()
-#         try:
-#             log_text = entry_prefix + "5 not logged dpo"
-#             cae.dpo(log_text, minimum_debug_level=DEBUG_LEVEL_DISABLED)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file) == 0
-#
-#         try:
-#             log_text = entry_prefix + "5 dpo"
-#             cae.dpo(log_text, minimum_debug_level=DEBUG_LEVEL_DISABLED, logger=ae_cae_logger)
-#         finally:
-#             logging.shutdown()
-#             assert delete_files(log_file, ret_type='contents')[0].endswith(log_text + os.linesep)
-#
-#     def test_app_instances_reset2(self):
-#         assert main_app_instance() is None
-
-
-# noinspection PyUnusedLocal
 class TestConfigOptions:
     def test_missing_cfg_file(self, restore_app_env):
         file_name = 'm_i_s_s_i_n_g' + INI_EXT
@@ -963,7 +815,6 @@ class TestConfigOptions:
         assert main_app_instance() is None
 
 
-# noinspection PyUnusedLocal
 class TestConsoleAppBasics:
     def test_app_name(self, restore_app_env):
         assert main_app_instance() is None
@@ -1062,7 +913,6 @@ class TestConsoleAppBasics:
         assert main_app_instance() is None
 
 
-# noinspection PyUnusedLocal
 class TestUser:
     def test_load_user_cfg_user_id_from_os(self, restore_app_env, config_fna_vna_vva):
         _file_name, _var_name, _old_var_val = config_fna_vna_vva()
