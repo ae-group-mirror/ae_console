@@ -1,4 +1,4 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls V0.3.45
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.56
 """ setup of ae namespace module portion console: console application environment. """
 # noinspection PyUnresolvedReferences
 import sys
@@ -16,23 +16,22 @@ setup_kwargs = {
         'Typing :: Typed'],
     'description': 'ae namespace module portion console: console application environment',
     'extras_require': {       'dev': [       'aedev_project_tpls', 'ae_ae', 'anybadge', 'coverage-badge', 'aedev_git_repo_manager', 'flake8',
-                       'mypy', 'pylint', 'pytest', 'pytest-cov', 'pytest-django', 'typing', 'types-setuptools', 'wheel',
-                       'twine'],
+                       'mypy', 'pylint', 'pytest', 'pytest-cov', 'pytest-django', 'typing', 'types-setuptools'],
         'docs': [],
         'tests': [       'anybadge', 'coverage-badge', 'aedev_git_repo_manager', 'flake8', 'mypy', 'pylint', 'pytest',
-                         'pytest-cov', 'pytest-django', 'typing', 'types-setuptools', 'wheel', 'twine']},
+                         'pytest-cov', 'pytest-django', 'typing', 'types-setuptools']},
     'install_requires': ['ae_base', 'ae_paths', 'ae_core', 'ae_literal', 'pyjnius'],
     'keywords': ['configuration', 'development', 'environment', 'productivity'],
     'license': 'GPL-3.0-or-later',
-    'long_description': ('<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae V0.3.96 -->\n'
+    'long_description': ('<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae v0.3.96 -->\n'
  '<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.tpl_namespace_root V0.3.14 -->\n'
- '# console 0.3.83\n'
+ '# console 0.3.84\n'
  '\n'
  '[![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_console/develop?logo=python)](\n'
  '    https://gitlab.com/ae-group/ae_console)\n'
  '[![LatestPyPIrelease](\n'
- '    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.82?logo=python)](\n'
- '    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.82)\n'
+ '    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.83?logo=python)](\n'
+ '    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.83)\n'
  '[![PyPIVersions](https://img.shields.io/pypi/v/ae_console)](\n'
  '    https://pypi.org/project/ae-console/#history)\n'
  '\n'
@@ -108,9 +107,8 @@ setup_kwargs = {
         'Repository': 'https://gitlab.com/ae-group/ae_console',
         'Source': 'https://ae.readthedocs.io/en/latest/_modules/ae/console.html'},
     'python_requires': '>=3.9',
-    'setup_requires': [],
     'url': 'https://gitlab.com/ae-group/ae_console',
-    'version': '0.3.83',
+    'version': '0.3.84',
     'zip_safe': True,
 }
 

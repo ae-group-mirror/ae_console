@@ -235,7 +235,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.83'
+__version__ = '0.3.84'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -390,7 +390,7 @@ class ConsoleApp(AppBase):
         log_file_name = self._init_logging(logging_params)
 
         self.dpo(self.app_name, "      startup", self.startup_beg, self.app_title, logger=APP_LOGGER)
-        self.dpo(f"####  {self.app_key} initialization......  ####", logger=APP_LOGGER)
+        self.dpo(f"  ..  {self.app_key} initialization  ....", logger=APP_LOGGER)
 
         # prepare argument parser
         if not formatter_class:
@@ -787,8 +787,11 @@ class ConsoleApp(AppBase):
                             :meth:`.get_variable` if this option is not specified as a command line argument
                             and in the config files of the main app.
                             pass `UNSET` to define a boolean flag option, which then can be specified without a value
-                            on the command line in order to result as `True`, and else as `False`. specifying a value
-                            on the command line for an option added with an `UNSET` value results in a `SystemExit`.
+                            on the command line in order to result as `True`, and else as `False`.
+                            pass `'++'` to add a 'count' action option, which can be specified multiple times, and its
+                            option value is the number of times it get specified.
+                            specifying a value on the command line for an option added with an `UNSET` or `'++'`
+                            argument results in an argument parsing error and `SystemExit`.
         :param short_opt:   short option character. if not passed or passed as '' then the first character of the name
                             will be used. passing `UNSET` or `None` prevents the declaration of a short option. please
                             note that the short options 'h', 'D' and 'L' are already used internally by the classes
@@ -816,7 +819,7 @@ class ConsoleApp(AppBase):
         name_or_flags.append('--' + name)
 
         # determine the config value to use as default for command line arg
-        default_val = False if value is UNSET else value
+        default_val = False if value is UNSET else 0 if value == '++' else value
         option = Literal(literal_or_value=default_val, name=name)
         # alt: cfg_val = self._get_cfg_parser_val(name, self.user_section(MAIN_SECTION_NAME, name), default_value=value)
         cfg_val = self.get_variable(name, section=MAIN_SECTION_NAME, default_value=default_val)
@@ -824,6 +827,9 @@ class ConsoleApp(AppBase):
         kwargs = {'help': desc, 'default': cfg_val}
         if value is UNSET:
             kwargs['action'] = 'store_true'
+        elif value == '++':
+            kwargs['action'] = 'count'
+            kwargs['default'] = default_val
         else:
             kwargs.update(type=option.convert_value, choices=choices, metavar=name)
             if multiple:
@@ -916,7 +922,7 @@ class ConsoleApp(AppBase):
 
         # finished argument parsing - now print chosen option values to the console
         self.startup_end = datetime.datetime.now()
-        self.po(f"####  {self.app_name}  V {self.app_version}  args parsed at {self.startup_end}", logger=APP_LOGGER)
+        self.po(f"¡¡¡   {self.app_name} v{self.app_version} args parsed at {self.startup_end}", logger=APP_LOGGER)
 
         self.debug_level = self.cfg_options['debug_level'].value
 

@@ -214,13 +214,17 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             assert app is main_app_instance()
             assert app.is_main
             assert sub is not None
-            # noinspection PyUnresolvedReferences
+            # noinspection PyUnresolvedReferences,PyUnreachableCode
             assert not sub.is_main
-            # noinspection PyUnresolvedReferences
+            # noinspection PyUnresolvedReferences,PyUnreachableCode
             sub.init_logging()  # close sub-app log file
+            # noinspection PyUnreachableCode
             sub_thread.join()
+            # noinspection PyUnreachableCode
             app.init_logging()  # close main-app log file
+            # noinspection PyUnreachableCode
             assert os.path.exists(sp + log_file)
+            # noinspection PyUnreachableCode
             assert os.path.exists(mp + log_file)
         finally:
             contents = delete_files(mp + log_file, ret_type='contents')
@@ -237,6 +241,7 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
     def test_exception_log_file_flush(self, restore_app_env):
         cae = ConsoleApp('test_exception_log_file_flush')
         # cause/provoke _append_eof_and_flush_file() exceptions for coverage by passing any other non-stream object
+        # noinspection PyTypeHints
         cae._append_eof_and_flush_file(cast('TextIO', None), 'invalid stream')
 
     def test_app_instances_reset_fin(self):
@@ -286,12 +291,12 @@ class TestConfigOptions:
         assert section_name in err_msg
         assert fil_nam in err_msg
 
-    def test_get_var_basics(self, cons_app):
+    def test_get_variable_basics(self, cons_app):
         cae = cons_app
         assert cae.get_variable('debug_level') == DEBUG_LEVEL_VERBOSE
         assert cae.get_variable('un_declared_name') is None
 
-    def test_get_var_env_options(self, cons_app):
+    def test_get_variable_env_options(self, cons_app):
         cae = cons_app
         vn = 'testVarName'
         assert cae.get_variable(vn) is None
@@ -300,7 +305,7 @@ class TestConfigOptions:
         os.environ['AE_OPTIONS_TEST_VAR_NAME'] = vv
         assert cae.get_variable(vn) == vv
 
-    def test_get_var_env_section(self, cons_app):
+    def test_get_variable_env_section(self, cons_app):
         cae = cons_app
         vn = 'testVarName'
         assert cae.get_variable(vn, section='aeSystems') is None
@@ -310,9 +315,9 @@ class TestConfigOptions:
         assert cae.get_variable(vn, section='aeSystems') == vv
 
     @skip_gitlab_ci     # skip on gitlab because it does not provide user/home ~/.config folder
-    def test_get_var_file_order(self, restore_app_env, config_fna_vna_vva):
+    def test_get_variable_file_order(self, restore_app_env, config_fna_vna_vva):
         cwd_file, var_name, cwd_value = config_fna_vna_vva(file_name='test' + INI_EXT, var_value='cwd')
-        cae = ConsoleApp('test_get_var_file_order', app_name='test')    # not needed: additional_cfg_files=[cwd_file]
+        cae = ConsoleApp('test_get_variable_file_order', app_name='test')  # not needed: additional_cfg_files=[cwd_file]
         assert cae.get_variable(var_name) == cwd_value                  # cwd variable
 
         usr_file, _, usr_value = config_fna_vna_vva(file_name='{usr}/test' + INI_EXT, var_value='usr')
@@ -324,17 +329,18 @@ class TestConfigOptions:
         app_path = normalize("{ado}")   # home/Documents/test will not be removed after test run!
         app_file, _, app_value = config_fna_vna_vva(file_name='{ado}/test' + INI_EXT, var_value='ado')
         assert app_file != cwd_file and app_file != usr_file
+        assert app_path.startswith(app_path)
         cae.add_cfg_files()
         cae.load_cfg_files()
-        assert cae.get_variable(var_name) == app_value                       # usr_app variable overwrites cwd+usr variables
+        assert cae.get_variable(var_name) == app_value              # usr_app variable overwrites cwd+usr variables
 
-    def test_set_var_basics(self, restore_app_env, config_fna_vna_vva):
+    def test_set_variable_basics(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(file_name='test' + INI_EXT)
 
         opt_test_val = 'opt_test_val'
         sys.argv = ['test', '-t=' + opt_test_val]
 
-        cae = ConsoleApp('test_set_var_basics')
+        cae = ConsoleApp('test_set_variable_basics')
         cae.add_opt(var_name, 'test_config_basics', 'init_test_val')
         assert cae.get_opt(var_name) == opt_test_val
 
@@ -354,10 +360,10 @@ class TestConfigOptions:
         assert not cae.set_var(var_name, val)
         assert cae.get_variable(var_name) == val.strftime(DATE_ISO)
 
-    def test_set_var_without_ini(self, restore_app_env):
+    def test_set_variable_without_ini(self, restore_app_env):
         var_name = 'test_config_var'
-        cae = ConsoleApp('test_set_var_without_ini')
-        cae.add_opt(var_name, 'test_set_var_without_ini', 'init_test_val', short_opt='t')
+        cae = ConsoleApp('test_set_variable_without_ini')
+        cae.add_opt(var_name, 'test_set_variable_without_ini', 'init_test_val', short_opt='t')
         opt_test_val = 'opt_test_val'
         sys.argv = ['test', '-t=' + opt_test_val]
         assert cae.get_opt(var_name) == opt_test_val
@@ -378,9 +384,9 @@ class TestConfigOptions:
         assert cae.set_var(var_name, val)  # will be set, but returning error because test.ini does not exist
         assert cae.get_variable(var_name) == val.strftime(DATE_ISO)
 
-    def test_set_var_file_error(self, config_fna_vna_vva, restore_app_env):
+    def test_set_variable_file_error(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
-        cae = ConsoleApp('test_set_var_file_error', additional_cfg_files=[file_name])
+        cae = ConsoleApp('test_set_variable_file_error', additional_cfg_files=[file_name])
         val = 'tt_value'
         # error in case of not existing ini file
         assert cae.set_var(var_name, val, cfg_fnam=os.path.join(os.getcwd(), 'not_existing' + INI_EXT))
@@ -388,17 +394,17 @@ class TestConfigOptions:
         # error in case of invalid section name
         assert cae.set_var(var_name, val, section="]", cfg_fnam=file_name)
 
-    def test_set_var_while_file_opened(self, config_fna_vna_vva, restore_app_env):
+    def test_set_variable_while_file_opened(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
-        cae = ConsoleApp('test_set_var_while_file_opened', additional_cfg_files=[file_name])
+        cae = ConsoleApp('test_set_variable_while_file_opened', additional_cfg_files=[file_name])
         val = 'tst_value'
 
         with open(file_name, 'w'):      # although open file set_var() will not fail
             assert not cae.set_var(var_name, val, cfg_fnam=file_name)
 
-    def test_set_var_with_reload(self, config_fna_vna_vva, restore_app_env):
+    def test_set_variable_with_reload(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
-        cae = ConsoleApp('test_set_var_with_reload', additional_cfg_files=[file_name])
+        cae = ConsoleApp('test_set_variable_with_reload', additional_cfg_files=[file_name])
         val = 'test_value'
         assert not cae.set_var(var_name, val, cfg_fnam=file_name)
 
@@ -409,9 +415,9 @@ class TestConfigOptions:
         cfg_val = cae.get_variable(var_name)
         assert cfg_val == val
 
-    def test_set_var_no_option(self, config_fna_vna_vva, restore_app_env):
+    def test_set_variable_no_option(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
-        cae = ConsoleApp('test_set_var_no_option', additional_cfg_files=[file_name])
+        cae = ConsoleApp('test_set_variable_no_option', additional_cfg_files=[file_name])
         val = 'any_test_value'
         section_name = 'tstSection'
         assert not cae.set_var(var_name, val, cfg_fnam=file_name, section=section_name)
@@ -419,9 +425,9 @@ class TestConfigOptions:
         cfg_val = cae.get_variable(var_name, section=section_name)
         assert cfg_val == val
 
-    def test_set_var_with_rename(self, config_fna_vna_vva, restore_app_env):
+    def test_set_variable_with_rename(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
-        cae = ConsoleApp('test_set_var_with_rename', additional_cfg_files=[file_name])
+        cae = ConsoleApp('test_set_variable_with_rename', additional_cfg_files=[file_name])
         val = 'test_value'
         new_var_name = 'new_tst_var_name'
         assert not cae.set_var(new_var_name, val, cfg_fnam=file_name, old_name=var_name)
@@ -430,6 +436,25 @@ class TestConfigOptions:
         assert cfg_val is None
         cfg_val = cae.get_variable(new_var_name)
         assert cfg_val == val
+
+    def test_multiple_option_counted(self, restore_app_env):
+        cae = ConsoleApp('test_count_multiple_option')
+        sys.argv = ['test', "-C", "-C", "-C"]
+        cae.add_opt('testCountMultipleOptions', 'test count of multiple option', '++', 'C')
+        assert cae.get_opt('testCountMultipleOptions') == 3
+
+    def test_multiple_option_counted_default(self, restore_app_env):
+        cae = ConsoleApp('test_count_multiple_option')
+        sys.argv = ['test']
+        cae.add_opt('testCountMultipleOptionsDef', 'test default count of multiple option', '++', 'C')
+        assert cae.get_opt('testCountMultipleOptionsDef') == 0
+
+    def test_multiple_option_counted_fail(self, restore_app_env):
+        cae = ConsoleApp('test_count_multiple_option')
+        sys.argv = ['test', "-C 9"]
+        cae.add_opt('testCountMultipleOptionsFail', 'test default count of multiple option', '++', 'C')
+        with pytest.raises(SystemExit):
+            cae.get_opt('testCountMultipleOptionsFail')
 
     def test_multiple_option_single_char(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option')
@@ -1009,7 +1034,7 @@ class TestUser:
         cae.load_user_cfg()
         assert cae.user_specific_cfg_vars == usr_vars
 
-    def test_load_user_cfg_userz_registered(self, restore_app_env, config_fna_vna_vva):
+    def test_load_user_cfg_users_registered(self, restore_app_env, config_fna_vna_vva):
         reg_users = ['usr_id']
         file_name, _var_name, var_val = config_fna_vna_vva(additional_line=f"registered_users = {reg_users!r}")
         cae = ConsoleApp(additional_cfg_files=(file_name, ))
