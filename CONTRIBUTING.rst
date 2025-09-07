@@ -1,6 +1,6 @@
 
 ..
-    THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls V0.3.45
+    THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.56
 
 contributing
 ============
@@ -50,18 +50,22 @@ using the git repository manager `grm`
 
 1. fork and clone the repository of this project to your computer
 
-   in your console change the working directory to your project's parent folder. then run the following command with
-   the ``new_feature_or_fix`` part replaced by an appropriate branch name, describing shortly your contribution::
+   in your console change the working directory to your project's parent folder. then run the following command::
 
-      grm -b new_feature_or_fix fork ae-group/ae_console
+      pjm fork ae-group/ae_console
 
    .. note::
-      the ``grm fork`` action will also add the forked repository as the remote ``upstream`` to your local
-      repository.
+      the ``pjm fork`` action will also add the forked repository as the ``upstream`` remote to your local repository.
 
-   after the repository fork you change your current working directory to the new working tree root folder,
-   created by the ``grm fork`` action, and execute the ``grm renew`` action. this will prepare a new package version
-   of the project and upgrade the project files created from templates to its latest version.
+   now change your current working directory to the new working-tree|project root folder,
+   created by the ``grm fork`` action, and execute the ``grm renew`` action with
+   the ``new_feature_or_fix`` part replaced by an appropriate branch name, describing shortly the new feature or the
+   bug-fix of your contribution::
+
+      pjm -b new_feature_or_fix renew
+
+   this will prepare a new release version of the project and upgrade the project files created from templates
+   to its latest version.
 
 2. code and check
 
