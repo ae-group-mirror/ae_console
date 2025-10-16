@@ -216,13 +216,14 @@ revoke which config variables the app is storing individually for each user.
     `user_specific_cfg_vars` in the user-specific config file section(s). don't forget in this special case to also add
     there also this config variable, e.g., as `('aeOptions', 'user_specific_cfg_vars')`.
 """
+# pylint: disable=too-many-lines
 import os
 import datetime
 import threading
 
 from typing import Any, Callable, Iterable, Optional, Type, Union
 from configparser import ConfigParser, NoSectionError
-from argparse import ArgumentParser, ArgumentError, HelpFormatter, Namespace
+from argparse import ArgumentParser, ArgumentError, Namespace
 
 from ae.base import (                                                                       # type: ignore
     CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
@@ -235,7 +236,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.84'
+__version__ = '0.3.85'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -264,7 +265,7 @@ def config_value_string(value: Any) -> str:
     return str_val.replace('%', '%%')
 
 
-class ConsoleApp(AppBase):
+class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-many-instance-attributes
     """ provides command line arguments and options, config options, logging and debugging for your application.
 
     most applications only need a single instance of this class. each instance is encapsulating a ConfigParser and
@@ -292,7 +293,6 @@ class ConsoleApp(AppBase):
                  debug_level: int = DEBUG_LEVEL_VERBOSE, multi_threading: bool = False, suppress_stdout: bool = False,
                  cfg_opt_eval_vars: Optional[dict] = None, additional_cfg_files: Iterable = (),
                  cfg_opt_val_stripper: Optional[Callable] = None,
-                 formatter_class: Optional[Any] = None, epilog: str = "",
                  **logging_params):
         """ initialize a new :class:`ConsoleApp` instance.
 
@@ -343,11 +343,6 @@ class ConsoleApp(AppBase):
 
         :param cfg_opt_val_stripper:    callable to strip/reformat/normalize the option choices.
 
-        :param formatter_class:         an alternative formatter class passed onto ArgumentParser instantiation.
-
-        :param epilog:                  optional epilog text for command line arguments/options help text (passed
-                                        onto ArgumentParser instantiation).
-
         :param logging_params:          all other kwargs are interpreted as logging configuration values - the
                                         supported kwargs are all the method kwargs of
                                         :meth:`~.core.AppBase.init_logging`.
@@ -392,18 +387,16 @@ class ConsoleApp(AppBase):
         self.dpo(self.app_name, "      startup", self.startup_beg, self.app_title, logger=APP_LOGGER)
         self.dpo(f"  ..  {self.app_key} initialization  ....", logger=APP_LOGGER)
 
-        # prepare argument parser
-        if not formatter_class:
-            formatter_class = HelpFormatter
         self._arg_parser: ArgumentParser = ArgumentParser(
-            description=self.app_title, epilog=epilog, formatter_class=formatter_class)   #: ArgumentParser instance
+            prog=self.app_name, description=self.app_title, add_help=False, exit_on_error=False)
         setattr(self, 'add_argument', self._arg_parser.add_argument)  #: redirect method to our ArgumentParser instance
 
         # create pre-defined config options
-        self.add_option('debug_level', "Verbosity of debug messages send to console and log files",
-                        self._debug_level, 'D', choices=DEBUG_LEVELS.keys())
+        self.add_option('debug_level', "Verbosity of debug messages send to console and log files", self._debug_level,
+                        short_opt='D', choices=DEBUG_LEVELS.keys())
+        self.add_option('help', "Show help", UNSET)
         if log_file_name is not None:
-            self.add_option('log_file', "Log file path", log_file_name, 'L')
+            self.add_option('log_file', "Log file path", log_file_name, short_opt='L')
 
     def _init_default_user_cfg_vars(self):
         """ init user default config variables.
@@ -776,7 +769,7 @@ class ConsoleApp(AppBase):
 
     get_arg = get_argument      #: alias of method :meth:`.get_argument`
 
-    def add_option(self, name: str, desc: str, value: Optional[Any] = None, short_opt: Union[str, UnsetType] = '',
+    def add_option(self, name: str, desc: str, value: Any, short_opt: Union[str, UnsetType] = '',
                    choices: Optional[Iterable] = None, multiple: bool = False, **add_kwargs):
         """ defining and adding a new config option for this app.
 
