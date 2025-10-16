@@ -452,8 +452,8 @@ class TestConfigOptions:
     def test_multiple_option_counted_fail(self, restore_app_env):
         cae = ConsoleApp('test_count_multiple_option')
         sys.argv = ['test', "-C 9"]
-        cae.add_opt('testCountMultipleOptionsFail', 'test default count of multiple option', '++', 'C')
-        with pytest.raises(SystemExit):
+        cae.add_opt('testCountMultipleOptionsFail', 'test default count of multiple option', '++', short_opt='C')
+        with pytest.raises(ArgumentError):
             cae.get_opt('testCountMultipleOptionsFail')
 
     def test_multiple_option_single_char(self, restore_app_env):
