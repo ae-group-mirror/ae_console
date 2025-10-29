@@ -219,11 +219,12 @@ revoke which config variables the app is storing individually for each user.
 # pylint: disable=too-many-lines
 import os
 import datetime
+import sys
 import threading
 
-from typing import Any, Callable, Iterable, Optional, Type, Union
-from configparser import ConfigParser, NoSectionError
 from argparse import ArgumentParser, ArgumentError, Namespace
+from configparser import ConfigParser, NoSectionError
+from typing import Any, Callable, Iterable, Optional, Type, Union
 
 from ae.base import (                                                                       # type: ignore
     CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
@@ -236,7 +237,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.85'
+__version__ = '0.3.86'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -289,6 +290,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
     * :attr:`_main_cfg_mod_time` last modification datetime of the main config file.
     * :attr:`_parsed_arguments` ArgumentParser.parse_args() return.
     """
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def __init__(self, app_title: str = '', app_name: str = '', app_version: str = '', sys_env_id: str = '',
                  debug_level: int = DEBUG_LEVEL_VERBOSE, multi_threading: bool = False, suppress_stdout: bool = False,
                  cfg_opt_eval_vars: Optional[dict] = None, additional_cfg_files: Iterable = (),
@@ -389,6 +391,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
         self._arg_parser: ArgumentParser = ArgumentParser(
             prog=self.app_name, description=self.app_title, add_help=False, exit_on_error=False)
+        setattr(self._arg_parser, 'error', self.show_parse_error_and_exit)
         setattr(self, 'add_argument', self._arg_parser.add_argument)  #: redirect method to our ArgumentParser instance
 
         # create pre-defined config options
@@ -460,8 +463,8 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
     def debug_level(self, debug_level):
         """ overwriting AppBase setter to update also the `debug_level` config option. """
         self._debug_level = debug_level
-        if self.get_opt('debug_level') != debug_level:
-            self.set_opt('debug_level', debug_level)
+        if self.get_option('debug_level') != debug_level:
+            self.set_option('debug_level', debug_level)
 
     # methods to process command line options and config files
 
@@ -499,7 +502,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         #. .sys_env.cfg in the parent folder of the parent folder of the <cwd>
         #. .sys_env<sys_env_id>.cfg in the parent folder of the parent folder of the <cwd>
         #. .app_env.cfg in the parent folder of the parent folder of the <cwd>
-        #. value argument passed into the add_opt() method call (defining the option)
+        #. value argument passed into the add_option() method call (defining the option)
         #. default_value argument passed into this method (only if the method :class:`~ConsoleApp.add_option` didn't
            get called)
 
@@ -585,6 +588,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
             return os.path.getmtime(self._main_cfg_fnam) > self._main_cfg_mod_time \
                 if self._main_cfg_fnam and self._main_cfg_mod_time else False
 
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def get_variable(self, name: str, section: Optional[str] = None, default_value: Optional[Any] = None,
                      cfg_parser: Optional[ConfigParser] = None, value_type: Optional[Type] = None) -> Any:
         """ determine value of a config option, an OS environ variable or a config variable.
@@ -648,8 +652,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
         return val
 
-    get_var = get_variable      #: alias of method :meth:`.get_variable`
-
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def set_variable(self, name: str, value: Any, cfg_fnam: Optional[str] = None, section: Optional[str] = None,
                      old_name: str = '') -> str:
         """ change the value of a :ref:`config variable <config-variables>` and if exists, the related config option.
@@ -669,8 +672,6 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
                                 section (:data:`MAIN_SECTION_NAME`) if not specified or if None or empty string passed.
         :param old_name:        old name/option_id that has to be removed (used to rename config option name/key).
         :return:                empty string on success else error message text.
-
-        this method has an alias named :meth:`set_var`.
         """
         msg = f"****  ConsoleApp.set_variable({name=!r}, {value=!r}) "
         cfg_fnam = cfg_fnam or self._main_cfg_fnam
@@ -708,8 +709,6 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
         return err_msg
 
-    set_var = set_variable  #: alias of method :meth:`.set_variable`
-
     def del_section(self, section: str, cfg_fnam: Optional[str] = None):
         """ delete a section from the main or the specified config file.
 
@@ -745,30 +744,23 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
         original/underlying args/kwargs of :class:`argparse.ArgumentParser` are used - please see the
         description/definition of :meth:`~argparse.ArgumentParser.add_argument`.
-
-        this method has an alias named :meth:`add_arg`.
         """
         # ### THIS METHOD DEF GOT CODED HERE ONLY FOR SPHINX DOCUMENTATION BUILD PURPOSES ###
         # this method gets never called because it gets overwritten with self._arg_parser.add_argument in __init__().
         self._arg_parser.add_argument(*args, **kwargs)  # pragma: no cover - will never be executed
-
-    add_arg = add_argument      #: alias of method :meth:`.add_argument`
 
     def get_argument(self, name: str) -> Any:
         """ determine the command line parameter value.
 
         :param name:    argument id of the parameter.
         :return:        value of the parameter.
-
-        this method has an alias named :meth:`get_arg`.
         """
         if not self._parsed_arguments:
             self.parse_arguments()
             self.vpo("ConsoleApp.get_argument call before explicit command line args parsing (run_app() call missing)")
         return getattr(self._parsed_arguments, name)
 
-    get_arg = get_argument      #: alias of method :meth:`.get_argument`
-
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def add_option(self, name: str, desc: str, value: Any, short_opt: Union[str, UnsetType] = '',
                    choices: Optional[Iterable] = None, multiple: bool = False, **add_kwargs):
         """ defining and adding a new config option for this app.
@@ -793,9 +785,10 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         :param multiple:    pass True if the option can be added multiple times to the command line (default=False).
         :param add_kwargs:  additional kwargs to be passed onto :meth:`ArgsParser.add_argument`.
 
-        the value of a config option can be of any type and gets represented by an instance of the
-        :class:`~.literal.Literal` class. supported value types and literals are documented
-        :attr:`here <.literal.Literal.value>`.
+        .. hint::
+            the value of a config option can be of any type and gets represented by an instance of the
+            :class:`~.literal.Literal` class. supported value types and literals are documented
+            :attr:`here <.literal.Literal.value>`.
         """
         if self._parsed_arguments:
             self._parsed_arguments = None        # request (re-)parsing of command line args
@@ -836,8 +829,6 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
         self.cfg_options[name] = option
 
-    add_opt = add_option    #: alias of method :meth:`.add_option`
-
     def _change_option(self, name: str, value: Any):
         """ change the specified config option and the related instance shortcut|property to the specified value. """
         if name in self.cfg_options:
@@ -865,8 +856,6 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
             self.vpo("ConsoleApp.get_option call before explicit command line args parsing (run_app() call missing)")
         return self.get_variable(name, default_value=default_value)
 
-    get_opt = get_option    #: alias of method :meth:`.get_option`
-
     def set_option(self, name: str, value: Any, cfg_fnam: Optional[str] = None, save_to_config: bool = True) -> str:
         """ set or change the value of a config option.
 
@@ -877,17 +866,13 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         :param save_to_config:  pass False to prevent saving the new option value to the main/specified config file.
                                 the value of the config option will be changed in any case.
         :return:                ''/empty string on success else error message text.
-
-        this method has an alias named :meth:`set_opt`.
         """
         if save_to_config:
             return self.set_variable(name, value, cfg_fnam)  # store in the config file and call self._change_option()
         self._change_option(name, value)
         return ""
 
-    set_opt = set_option    #: alias of method :meth:`.set_option`
-
-    def parse_arguments(self):
+    def parse_arguments(self):  # pylint: disable=too-many-branches
         """ parse all command line args.
 
         this method gets normally only called once, and after all, the options have been added with :meth:`add_option`.
@@ -895,21 +880,24 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         following call of this method will overwrite it with command line argument value, if given.
         """
         self.vpo("ConsoleApp.parse_arguments()")
-        self._parsed_arguments = self._arg_parser.parse_args()
 
-        for name, cfg_opt in self.cfg_options.items():
-            cfg_opt.value = getattr(self._parsed_arguments, name)
-            if name in self.cfg_opt_choices:
-                for given_value in cfg_opt.value:
-                    if self._cfg_opt_val_stripper:
-                        given_value = self._cfg_opt_val_stripper(given_value)
-                    allowed_values = self.cfg_opt_choices[name]
-                    if given_value not in allowed_values:
-                        raise ArgumentError(None, f"'{name}' option has wrong {given_value=}; {allowed_values=}")
+        try:
+            self._parsed_arguments = self._arg_parser.parse_args()
 
-        is_main_app = main_app_instance() is self
-        if is_main_app and not self.py_log_params and 'log_file' in self.cfg_options:
-            self._log_file_name = self.cfg_options['log_file'].value
+            for name, cfg_opt in self.cfg_options.items():
+                cfg_opt.value = getattr(self._parsed_arguments, name)
+                if name in self.cfg_opt_choices:
+                    for given_value in cfg_opt.value:
+                        if self._cfg_opt_val_stripper:
+                            given_value = self._cfg_opt_val_stripper(given_value)
+                        allowed_values = self.cfg_opt_choices[name]
+                        if given_value not in allowed_values:
+                            raise ArgumentError(None, f"'{name}' option has wrong {given_value=}; {allowed_values=}")
+        except (ArgumentError, ) as ex:    # pylint: disable=broad-exception-caught
+            self.show_parse_error_and_exit(str(ex))
+
+        if main_app_instance() is self and not self.py_log_params and 'log_file' in self.cfg_options:
+            self._log_file_name = self.cfg_options['log_file'].value or ""
             if self._log_file_name:
                 self.log_file_check()
 
@@ -917,7 +905,8 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         self.startup_end = datetime.datetime.now()
         self.po(f"¡¡¡   {self.app_name} v{self.app_version} args parsed at {self.startup_end}", logger=APP_LOGGER)
 
-        self.debug_level = self.cfg_options['debug_level'].value
+        if self._parsed_arguments:
+            self.debug_level = self.cfg_options['debug_level'].value
 
         if 'user_id' in self.cfg_options:
             self.user_id = self.cfg_options['user_id'].value
@@ -978,7 +967,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         with config_lock:
             if not registered:
                 self.registered_users.append(user_id)
-                self.set_var('registered_users', self.registered_users)
+                self.set_variable('registered_users', self.registered_users)
 
             if not registered or reset_cfg_vars:
                 current_user_id = self.user_id
@@ -986,7 +975,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
                     self.user_id = ''
                     value = self.get_variable(var_name, section)
                     self.user_id = user_id
-                    self.set_var(var_name, value, section=section)
+                    self.set_variable(var_name, value, section=section)
                 self.user_id = current_user_id
 
             if set_as_default:
@@ -1053,10 +1042,29 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
             self.parse_arguments()
 
     def show_help(self):
-        """ print the usage/help message, listing defined command line args and options, to console output/stream.
+        """ print usage/help message to console output.
 
-        includes command line args defined with :meth:`.add_argument`, options defined with :meth:`.add_option` and the
-        args/kwargs defined with the respective :class:`~argparse.ArgumentParser` methods (see description/definition of
-        :meth:`~argparse.ArgumentParser.print_help` of :class:`~argparse.ArgumentParser`).
+        .. hint::
+            the console output includes the usage, the options defined via :meth:`.add_option`, and the command line
+            arguments defined via :meth:`.add_argument` (respective the same-named :class:`~argparse.ArgumentParser`
+            method). see also the description/definition of :meth:`~argparse.ArgumentParser.print_help`.
         """
+        self.po()
         self._arg_parser.print_help(file=ori_std_out)
+
+    def show_parse_error_and_exit(self, message: str):
+        """ show help and arg parse error message and shutdown/exit/quit this app instance with exit code 255.
+
+        :param message:         args parse error message to display at the end of the help printout on the console.
+
+        .. hint:: this method gets also used to patch the :meth:`argparse.ArgumentParser.error` method.
+        """
+        self.show_help()
+
+        if main_app := main_app_instance():     # main_app could be None in some unit tests
+            self.po()
+            self.po(f"***** {message}")
+            main_app.shutdown(255, )
+        else:
+            print(f"\n***** {message}")         # print error message if main app got shot down in unit tests
+            sys.exit(255, )
