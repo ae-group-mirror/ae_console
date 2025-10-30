@@ -25,13 +25,13 @@ setup_kwargs = {
     'license': 'GPL-3.0-or-later',
     'long_description': ('<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project ae.ae v0.3.101 -->\n'
  '<!-- THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.namespace_root_tpls v0.3.22 -->\n'
- '# console 0.3.86\n'
+ '# console 0.3.87\n'
  '\n'
  '[![GitLab develop](https://img.shields.io/gitlab/pipeline/ae-group/ae_console/develop?logo=python)](\n'
  '    https://gitlab.com/ae-group/ae_console)\n'
  '[![LatestPyPIrelease](\n'
- '    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.86?logo=python)](\n'
- '    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.86)\n'
+ '    https://img.shields.io/gitlab/pipeline/ae-group/ae_console/release0.3.87?logo=python)](\n'
+ '    https://gitlab.com/ae-group/ae_console/-/tree/release0.3.87)\n'
  '[![PyPIVersions](https://img.shields.io/pypi/v/ae_console)](\n'
  '    https://pypi.org/project/ae-console/#history)\n'
  '\n'
@@ -108,7 +108,7 @@ setup_kwargs = {
         'Source': 'https://ae.readthedocs.io/en/latest/_modules/ae/console.html'},
     'python_requires': '>=3.9',
     'url': 'https://gitlab.com/ae-group/ae_console',
-    'version': '0.3.86',
+    'version': '0.3.87',
     'zip_safe': True,
 }
 

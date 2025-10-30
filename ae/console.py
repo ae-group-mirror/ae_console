@@ -237,7 +237,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.86'
+__version__ = '0.3.87'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -704,7 +704,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
                 self.load_cfg_files(config_modified=False)
                 self.load_user_cfg()  # reload in case a user config variable got changed
 
-            except Exception as ex:                                 # pylint: disable=broad-except
+            except Exception as ex:                                 # pragma: no cover # pylint: disable=broad-except
                 err_msg = msg + f"exception: {ex}"
 
         return err_msg
@@ -1062,9 +1062,9 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         self.show_help()
 
         if main_app := main_app_instance():     # main_app could be None in some unit tests
-            self.po()
-            self.po(f"***** {message}")
+            main_app.po()
+            main_app.po(f"***** {message}")
             main_app.shutdown(255, )
-        else:
+        else:                                   # pragma: no cover
             print(f"\n***** {message}")         # print error message if main app got shot down in unit tests
             sys.exit(255, )

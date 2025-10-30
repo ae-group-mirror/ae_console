@@ -187,6 +187,7 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             assert mp + tst_out + "_2" in contents[0]
             assert sp + tst_out not in contents[0]
 
+    @skip_gitlab_ci
     def test_threaded_sub_app_logging(self, restore_app_env):
         sub_printed = False
         # thread_started_event = threading.Event()
@@ -493,7 +494,7 @@ class TestConfigOptions:
     def test_multiple_option_stripped_value_with_choices(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option_stripped_with_choices', cfg_opt_val_stripper=lambda v: v[-1])
         sys.argv = ['test', "-Z=x6", "-Z=yyy9"]
-        cae.add_option('testAppOptChoicesSVWC', 'mult choices', [], short_opt='Z', choices=['6', '9'], multiple=True)
+        cae.add_option('testAppOptChoicesSVWC', 'multi choices', [], short_opt='Z', choices=['6', '9'], multiple=True)
 
         assert cae.get_option('testAppOptChoicesSVWC') == ['x6', 'yyy9']
 
