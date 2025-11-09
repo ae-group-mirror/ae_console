@@ -259,6 +259,21 @@ class TestConfigOptions:
         cae = ConsoleApp('test_missing_cfg_file', additional_cfg_files=[file_name])
         assert not [f for f in cae._cfg_files if f.endswith(file_name)]
 
+    def test_add_option(self, restore_app_env):
+        cae = ConsoleApp('test_add_opt')
+        opt_name = 'test_opt'
+        opt_val = 'test_opt_value'
+
+        assert cae.get_option(opt_name) is None
+
+        cae.add_option(opt_name, 'test_opt_description', opt_val)
+
+        assert cae.get_option(opt_name) == opt_val
+
+    def test_add_argument(self, restore_app_env):
+        cae = ConsoleApp('test_add_argument')
+        cae.add_argument('test_arg')
+
     def test_app_instances_reset1(self):
         assert main_app_instance() is None
 
@@ -295,6 +310,23 @@ class TestConfigOptions:
         assert "del_section" in err_msg
         assert section_name in err_msg
         assert fil_nam in err_msg
+
+    def test_get_argument(self, restore_app_env):
+        cae = ConsoleApp('test_get_argument')
+        cae.add_argument('test_arg')
+        arg_val = 'test_arg_val'
+        sys.argv = ['test_app', arg_val]
+        assert cae.get_argument('test_arg') == arg_val
+
+    def test_get_option(self, capsys, cons_app):
+        assert cons_app.get_option('force') is 0
+        assert cons_app.get_option('name_of_undefined_opt') is None
+        assert cons_app.get_option('name_of_undefined_opt', default_value='value_of_opt') == 'value_of_opt'
+
+        out, err = capsys.readouterr()
+        assert 'ConsoleApp.get_option call before explicit command line args parsing' in out
+        assert 'force' in out
+        assert err == ""
 
     def test_get_variable_basics(self, cons_app):
         cae = cons_app
@@ -338,6 +370,33 @@ class TestConfigOptions:
         cae.add_cfg_files()
         cae.load_cfg_files()
         assert cae.get_variable(var_name) == app_value              # usr_app variable overwrites cwd+usr variables
+
+    def test_get_variable_via_cons_app_fixture(self, capsys, cons_app, monkeypatch):
+        monkeypatch.setenv("AE_OPTIONS_NAME_OF_VAR", 'value_of_var')
+
+        ret = cons_app.get_variable('name_of_var')
+
+        assert ret == 'value_of_var'
+        out, err = capsys.readouterr()
+        assert 'AppBase.__init__()' in out
+        assert err == ""
+
+    def test_set_option(self, restore_app_env):
+        tst_val = 'test_init_value'
+        cae = ConsoleApp('test_set_opt')
+        cae.add_option('test_opt', 'test_opt_description', tst_val)
+        sys.argv = ['tso_pseudo_arg']
+
+        assert cae.get_option('test_opt') == tst_val
+
+        tst_val = 'test_value'
+        cae.set_option('test_opt', tst_val, save_to_config=False)
+
+        assert cae.get_option('test_opt') == tst_val
+
+        cae.set_option('debug_level', DEBUG_LEVEL_VERBOSE, save_to_config=False)
+
+        assert cae.get_option('debug_level') == DEBUG_LEVEL_VERBOSE
 
     def test_set_variable_basics(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _ = config_fna_vna_vva(file_name='test' + INI_EXT)
@@ -915,6 +974,30 @@ class TestConfigOptions:
 
 
 class TestConsoleAppBasics:
+    def test_app_instance_of_cons_app_fixture(self, cons_app):
+        assert isinstance(cons_app, ConsoleApp)
+        # main_app = main_app_instance()   -->  FAILS - returns None ?!?!?
+        # assert isinstance(main_app, ConsoleApp)
+        # assert main_app is cons_app
+
+        assert cons_app.debug is True
+        assert cons_app.verbose is True
+
+        assert callable(cons_app.chk)
+        assert callable(cons_app.po)
+        assert callable(cons_app.dpo)
+        assert callable(cons_app.vpo)
+        assert callable(cons_app.get_option)
+        assert callable(cons_app.get_argument)
+        assert callable(cons_app.get_variable)
+        assert callable(cons_app.set_option)
+        assert callable(cons_app.set_variable)
+        assert callable(cons_app.show_help)
+        assert callable(cons_app.shutdown)
+
+    def test_app_instances_reset0(self):
+        assert main_app_instance() is None
+
     def test_app_name(self, restore_app_env):
         assert main_app_instance() is None
         name = 'tan_cae_name'
@@ -926,45 +1009,6 @@ class TestConsoleAppBasics:
 
     def test_app_instances_reset1(self):
         assert main_app_instance() is None
-
-    def test_add_option(self, restore_app_env):
-        cae = ConsoleApp('test_add_opt')
-        opt_name = 'test_opt'
-        opt_val = 'test_opt_value'
-
-        assert cae.get_option(opt_name) is None
-
-        cae.add_option(opt_name, 'test_opt_description', opt_val)
-
-        assert cae.get_option(opt_name) == opt_val
-
-    def test_set_option(self, restore_app_env):
-        tst_val = 'test_init_value'
-        cae = ConsoleApp('test_set_opt')
-        cae.add_option('test_opt', 'test_opt_description', tst_val)
-        sys.argv = ['tso_pseudo_arg']
-
-        assert cae.get_option('test_opt') == tst_val
-
-        tst_val = 'test_value'
-        cae.set_option('test_opt', tst_val, save_to_config=False)
-
-        assert cae.get_option('test_opt') == tst_val
-
-        cae.set_option('debug_level', DEBUG_LEVEL_VERBOSE, save_to_config=False)
-
-        assert cae.get_option('debug_level') == DEBUG_LEVEL_VERBOSE
-
-    def test_add_argument(self, restore_app_env):
-        cae = ConsoleApp('test_add_argument')
-        cae.add_argument('test_arg')
-
-    def test_get_argument(self, restore_app_env):
-        cae = ConsoleApp('test_get_argument')
-        cae.add_argument('test_arg')
-        arg_val = 'test_arg_val'
-        sys.argv = ['test_app', arg_val]
-        assert cae.get_argument('test_arg') == arg_val
 
     def test_debug_level_set_property(self, restore_app_env):
         cae = ConsoleApp()
@@ -981,7 +1025,19 @@ class TestConsoleAppBasics:
         cae.show_help()
 
         out, err = capsys.readouterr()
+        assert err == ""
         assert out
+        # pjm check fails (not PyCharm) with file arg in show_help(): self._arg_parser.print_help(file=ori_std_out)?!?!?
+        assert 'tst_show_help' in out
+        assert 'pyTstConsAppKey' in out
+
+    def test_show_help_via_cons_app_fixture(self, capsys, cons_app):
+        cons_app.show_help()
+
+        out, err = capsys.readouterr()
+        assert err == ""
+        assert out
+        assert 'pyTstConsAppKey' in out
 
     def test_app_instances_reset3(self):
         from ae.core import _APP_INSTANCES
@@ -1021,6 +1077,38 @@ class TestConsoleAppBasics:
         assert ca2.sys_env_id == ''
         assert not ca2.get_option('debug_level')
 
+    def test_chk_no_shutdown(self, capsys, cons_app, restore_app_env):
+        cons_app.chk(-69, True, 'unused error message')     # no shutdown() call because 2nd arg (check_result) is True
+
+        out, err = capsys.readouterr()
+        assert 'unused error message' not in out
+        assert 'unused error message' not in err
+
+    def test_chk_no_shutdown_with_force(self, cons_app, restore_app_env):
+        with patch('ae.console.ConsoleApp.get_option', return_value=1):
+            # no shutdown() call because 'force' app option got patched to be 1/True
+            cons_app.chk(-99, False, "error message printed to console")
+
+    def test_chk_shutdown(self, cons_app, restore_app_env):
+        def _shutdown(_self, **kwargs):     # app.shutdown() args: 1st==self, 2nd==error code, 3rd==error message
+            _shutdown_args.append(kwargs)
+        _shutdown_args = []
+        err_msg = "error message passed onto shutdown()"
+
+        with patch('ae.core.AppBase.shutdown', new=_shutdown):
+            cons_app.chk(963, False, err_msg)
+
+        assert len(_shutdown_args) >= 1  # if runs via pjm check then 2 more shutdown calls with default arg values?!?!?
+        assert _shutdown_args[-1]['exit_code'] == 963
+        assert _shutdown_args[-1]['error_message'].startswith(err_msg)
+
+        with patch('ae.console.ConsoleApp.shutdown', new=_shutdown):
+            cons_app.chk(969, False, err_msg)
+
+        assert len(_shutdown_args) >= 2
+        assert _shutdown_args[-1]['exit_code'] == 969
+        assert _shutdown_args[-1]['error_message'].startswith(err_msg)
+
     def test_shutdown_basics(self, restore_app_env):
         def thr():
             """ thread """
@@ -1044,6 +1132,41 @@ class TestConsoleAppBasics:
         finally:
             running = False
             _deactivate_multi_threading()
+
+    def test_shutdown_calling_show_help(self, cons_app):
+        po_calls_args = []
+
+        def _po(*args, **_kwargs):
+            nonlocal po_calls_args
+            po_calls_args.append(args)
+
+        cons_app.po = _po
+
+        sh_called = 0
+
+        def _sh():
+            nonlocal sh_called
+            sh_called += 1
+
+        cons_app.show_help = _sh
+
+        ex_args = ()
+
+        def _ex(*args):
+            nonlocal ex_args
+            ex_args = args
+
+        cons_app.po = _po
+
+        with patch('sys.exit', new=_ex):
+            cons_app.shutdown(3, 'err3')
+
+        assert len(po_calls_args) == 2
+        assert po_calls_args[0][0] == '***** ' + 'err3'
+        assert po_calls_args[1][0].startswith('##### forced shutdown')
+        assert po_calls_args[1][0].endswith('exit_code=3')
+        assert sh_called == 1
+        assert ex_args == (3, )
 
     def test_app_instances_reset2(self):
         assert main_app_instance() is None
