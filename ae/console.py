@@ -181,6 +181,7 @@ the following config options/variables are pre-defined in the :ref:`main config 
 and recognized by :mod:`this module <.console>`, some of them also by the :mod:`ae.core` module/portion:
 
 * `debug_level`: debug logging verbosity level :ref:`config option <config-options>`
+* `force`: :ref:`config option <config-options>` to force the app to not quit on skip-able/ignorable errors.
 * `log_file`: ae logging file name (this is also a :ref:`config option <config-options>` - set-able as command line arg)
 * `logging_params`: :meth:`general ae logging configuration parameters (py and ae logging) <.core.AppBase.init_logging>`
 * `py_logging_params`: `python logging configuration
@@ -194,7 +195,10 @@ for more verbose logging, specify either on the command line or in a config file
 option `debug_level` (or as short option `-D`) with a value of 2 (for verbose). the supported config option values are
 documented :data:`here <.core.DEBUG_LEVELS>`.
 
-the value of the second pre-defined config option `log_file` specifies the log file path/file_name. also, this option
+the `force` command line option (short option `-f`) can be specified multiple times as command line argument to
+skip/ignore multiple errors, that are explicitly checked by calls to the :meth:`ConsoleApp.chk` method.
+
+the value of the pre-defined config option `log_file` specifies the log file path/file_name. also, this option
 can be abbreviated on the command line with the short `-L` option id.
 
 .. note::
@@ -233,11 +237,11 @@ from ae.base import (                                                           
 from ae.paths import PATH_PLACEHOLDERS, normalize, Collector  # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                                       # type: ignore # for mypy
-    DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, main_app_instance, ori_std_out, _LOGGER as APP_LOGGER, AppBase)
+    DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, main_app_instance, _LOGGER as APP_LOGGER, AppBase)
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.88'
+__version__ = '0.3.89'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -398,6 +402,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         self.add_option('debug_level', "Verbosity of debug messages send to console and log files", self._debug_level,
                         short_opt='D', choices=DEBUG_LEVELS.keys())
         self.add_option('help', "Show help", UNSET)
+        self.add_option('force', "Force action execution. specify multiple times to ignore multiple errors", '++')
         if log_file_name is not None:
             self.add_option('log_file', "Log file path", log_file_name, short_opt='L')
 
@@ -454,10 +459,6 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         super().init_logging(**logging_params)
 
         return None if 'py_logging_params' in logging_params else log_file_name
-
-    def __del__(self):
-        """ deallocate this app instance by calling :func:`ae.core.AppBase.shutdown`. """
-        self.shutdown(exit_code=None)
 
     @AppBase.debug_level.setter
     def debug_level(self, debug_level):
@@ -1050,7 +1051,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
             method). see also the description/definition of :meth:`~argparse.ArgumentParser.print_help`.
         """
         self.po()
-        self._arg_parser.print_help(file=ori_std_out)
+        self._arg_parser.print_help()  # removed file=ori_std_out: test failed on console|pjm check (PyCharm==ok)?!?!?
 
     def show_parse_error_and_exit(self, message: str):
         """ show help and arg parse error message and shutdown/exit/quit this app instance with exit code 255.
@@ -1068,3 +1069,32 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         else:                                   # pragma: no cover
             print(f"\n***** {message}")         # print error message if main app got shot down in unit tests
             sys.exit(255, )
+
+    def chk(self, error_code: int, check_result: bool, error_message: str):
+        """ exit/quit this console app if the `check_result` argument is False and the `force` app option is zero/False.
+
+        :param error_code:      used OS app exit code on app exit/quit/shutdown.
+        :param check_result:    result of the app run check/assertion.
+        :param error_message:   error message to print to the console/shell on app exit/quit.
+        """
+        if not check_result:
+            if left_forces := self.get_option('force'):
+                self.set_option('force', left_forces - 1, save_to_config=False)
+                self.po(f"  ### forced to ignore/skip error {error_code}: {error_message}")
+            else:
+                self.shutdown(exit_code=error_code,
+                              error_message=error_message + " (add (another) --force to ignore&skip this error)")
+
+    def shutdown(self, exit_code: Optional[int] = 0, error_message: str = "", timeout: Optional[float] = None):
+        """ shutdown this ConsoleApp instance, and also any created sub-app-instances.
+
+        :param exit_code:       optional OS exit code (def=0). pass None to prevent call of sys.exit(exit_code).
+                                if exit code is between 1 and 9 then the help message is printed to the console/shell.
+        :param error_message:   optional shutdown error message.
+        :param timeout:         optional timeout float value in seconds used for the thread termination/joining, for the
+                                shutdowns of the app/sub-app instances and for the acquisition of the threading locks of
+                                :data:`the ae log file <log_file_lock>` and the :data:`app instances <app_inst_lock>`.
+        """
+        if exit_code is not None and 1 <= exit_code <= 9:
+            self.show_help()
+        super().shutdown(exit_code=exit_code, error_message=error_message, timeout=timeout)
