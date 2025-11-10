@@ -1,10 +1,14 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.62
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.64
 # pylint: disable=redefined-outer-name, unused-argument; suppress fixtures conflicts (silly pylint)
 """ fixtures for to test this project """
 import os
 import sys
 import glob
 import pytest
+
+
+assert (cwd := os.getcwd()) == (prj_root := os.path.dirname(os.path.dirname(__file__))), f"wrong {cwd=}, != {prj_root=}"
+sys.path.insert(0, prj_root)  # add project root (==CWD) to sys.path (to run pytest w/o the 'python -m' prefix)
 
 
 SKIP_EXPRESSION = "'CI_PROJECT_ID' in os.environ"
