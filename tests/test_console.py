@@ -1159,7 +1159,7 @@ class TestConsoleAppBasics:
         cons_app.po = _po
 
         with patch('sys.exit', new=_ex):
-            cons_app.shutdown(3, 'err3')
+            cons_app.shutdown(3, error_message='err3')
 
         assert len(po_calls_args) == 2
         assert po_calls_args[0][0] == '***** ' + 'err3'

@@ -241,7 +241,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.90'
+__version__ = '0.3.91'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -1062,18 +1062,18 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         """
         self.show_help()
 
+        error_line = os.linesep + f"***** {message}"
         if main_app := main_app_instance():     # main_app could be None in some unit tests
             main_app.po()
-            main_app.po(f"***** {message}")
-            main_app.shutdown(255, )
+            main_app.shutdown(255, error_message=error_line)
         else:                                   # pragma: no cover
-            print(f"\n***** {message}")         # print error message if main app got shot down in unit tests
+            print(error_line)                   # print error message if main app got shot down in unit tests
             sys.exit(255, )
 
     def chk(self, error_code: int, check_result: bool, error_message: str):
         """ exit/quit this console app if the `check_result` argument is False and the `force` app option is zero/False.
 
-        :param error_code:      used OS app exit code on app exit/quit/shutdown.
+        :param error_code:      used OS app exit error code on app exit/quit/shutdown.
         :param check_result:    result of the app run check/assertion.
         :param error_message:   error message to print to the console/shell on app exit/quit.
         """
