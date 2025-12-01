@@ -241,7 +241,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.91'
+__version__ = '0.3.92'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -1062,7 +1062,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         """
         self.show_help()
 
-        error_line = os.linesep + f"***** {message}"
+        error_line = os.linesep + f"***** {self.app_name} v{self.app_version}: {message}"
         if main_app := main_app_instance():     # main_app could be None in some unit tests
             main_app.po()
             main_app.shutdown(255, error_message=error_line)
