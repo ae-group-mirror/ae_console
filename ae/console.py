@@ -146,9 +146,9 @@ a config variable value can be stored into a config file, by calling the :meth:`
 config options
 ^^^^^^^^^^^^^^
 
-config options are actually config variables which can be specified also as command line option, preceding the
-option name with two leading hyphen characters, and using an equal character between the option name and value,
-like shown in the following example command line:
+config options are actually config variables which can be specified also as command line option. most config options
+are expecting a value, specified after the option name and a space or an equal character,
+like shown for the ``log_file`` config option in the following example command line:
 
     $ your_application --log_file='your_new_log_file.log'
 
@@ -241,7 +241,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.92'
+__version__ = '0.3.93'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -1050,7 +1050,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
             arguments defined via :meth:`.add_argument` (respective the same-named :class:`~argparse.ArgumentParser`
             method). see also the description/definition of :meth:`~argparse.ArgumentParser.print_help`.
         """
-        self.po()
+        self.po(f"\n{self.app_name} V{self.app_version} usage:")
         self._arg_parser.print_help()  # removed file=ori_std_out: test failed on console|pjm check (PyCharm==ok)?!?!?
 
     def show_parse_error_and_exit(self, message: str):

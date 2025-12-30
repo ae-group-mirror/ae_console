@@ -83,7 +83,7 @@ setup_kwargs = {
     },
     'python_requires': '>=3.12',
     'url': 'https://gitlab.com/ae-group/ae_console',
-    'version': '0.3.92',
+    'version': '0.3.93',
     'zip_safe': True,
 }
 
