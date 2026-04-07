@@ -1,4 +1,4 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.71
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.77
 """ setup of ae namespace module portion console: console application environment. """
 import sys
 # noinspection PyUnresolvedReferences
@@ -28,26 +28,22 @@ setup_kwargs = {
             'aedev_project_tpls',
             'ae_ae',
             'anybadge',
-            'coverage-badge',
             'flake8',
             'mypy',
             'pylint',
             'pytest',
             'pytest-cov',
-            'pytest-django',
             'typing',
             'types-setuptools',
         ],
         'docs': [],
         'tests': [
             'anybadge',
-            'coverage-badge',
             'flake8',
             'mypy',
             'pylint',
             'pytest',
             'pytest-cov',
-            'pytest-django',
             'typing',
             'types-setuptools',
         ],
@@ -83,7 +79,7 @@ setup_kwargs = {
     },
     'python_requires': '>=3.12',
     'url': 'https://gitlab.com/ae-group/ae_console',
-    'version': '0.3.93',
+    'version': '0.3.94',
     'zip_safe': True,
 }
 
