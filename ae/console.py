@@ -241,7 +241,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.93'
+__version__ = '0.3.94'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -510,7 +510,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         **legend of the placeholders in the above search order lists** (see also :data:`ae.paths.PATH_PLACEHOLDERS`):
 
         * *<cwd>* is the current working directory of your application (determined with :func:`os.getcwd`)
-        * *<app_name>* is the base app name without extension of your main python code file.
+        * *<app_name>* is the base app name without extension of your main Python code file.
         * *<app_dir>* is the application data directory (APPDATA/<app_name> in Windows, ~/.config/<app_name> in Linux).
         * *<usr_dir>* is the user data directory (APPDATA in Windows, ~/.config in Linux).
         * *<sys_env_id>* is the specified argument of :meth:`ConsoleApp.__init__`.
@@ -528,7 +528,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
         self._cfg_files.extend(coll.files)
 
-        return "\n".join(f"config file {fnam} not found ({count} times)!" for fnam, count in coll.suffix_failed.items())
+        return os.linesep.join(f"config {file=} not found ({times=})!" for file, times in coll.suffix_failed.items())
 
     def cfg_section_variable_names(self, section: str, cfg_parser: Optional[ConfigParser] = None) -> tuple[str, ...]:
         """ determine current config variable names/keys of the passed config file section.
