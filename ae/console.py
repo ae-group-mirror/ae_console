@@ -187,7 +187,7 @@ and recognized by :mod:`this module <.console>`, some of them also by the :mod:`
 * `py_logging_params`: `python logging configuration
   <https://docs.python.org/3.6/library/logging.config.html#logging.config.dictConfig>`_
 * `registered_users`: list of registered user names/ids (extended by calls of :meth:`ConsoleApp.register_user` method)
-* `user_id`: id of the app user (default is the `operating system user name <ae.base.os_user_name>`)
+* `user_id`: id of the app user (default is the `operating system user name <ae.system.os_user_name>`)
 * `user_specific_cfg_vars`: list of config variables storing an individual value for each registered user (see
   section :ref:`user-specific-config-variables`)
 
@@ -232,8 +232,8 @@ from typing import Any, Callable, Iterable, Optional, Type, Union
 
 from ae.base import (                                                                       # type: ignore
     CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
-    env_str, instantiate_config_parser, norm_name, os_path_isfile, os_path_join,
-    os_user_name, sys_env_dict, sys_env_text)
+    env_str, norm_name, os_path_isfile, os_path_join)
+from ae.system import instantiate_config_parser, os_user_name, sys_env_dict, sys_env_text   # type: ignore
 from ae.paths import PATH_PLACEHOLDERS, normalize, Collector  # type: ignore
 # noinspection PyProtectedMember
 from ae.core import (                                                                       # type: ignore # for mypy
@@ -241,7 +241,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.94'
+__version__ = '0.3.95'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
