@@ -13,11 +13,13 @@ from unittest.mock import patch
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, os_user_name, write_file
+from ae.base import DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, write_file
+from ae.system import os_user_name
 from ae.paths import normalize
 # noinspection PyProtectedMember
 from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILES,
                      activate_multi_threading, _deactivate_multi_threading, main_app_instance, print_out)
+
 
 from ae.console import MAIN_SECTION_NAME, USER_NAME_MAX_LEN, config_value_string, ConsoleApp
 
@@ -546,16 +548,16 @@ class TestConfigOptions:
     def test_multiple_option_single_char_with_choices(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option_with_choices')
         sys.argv = ['test', "-Z=a", "-Z=1"]
-        cae.add_option('testAppOptChoicesSCWC', 'multi choices', [], short_opt='Z', choices=['a', '1'], multiple=True)
+        cae.add_option('testAppOptChoices_SCWC', 'multi choices', [], short_opt='Z', choices=['a', '1'], multiple=True)
 
-        assert cae.get_option('testAppOptChoicesSCWC') == ['a', '1']
+        assert cae.get_option('testAppOptChoices_SCWC') == ['a', '1']
 
     def test_multiple_option_stripped_value_with_choices(self, restore_app_env):
         cae = ConsoleApp('test_multiple_option_stripped_with_choices', cfg_opt_val_stripper=lambda v: v[-1])
         sys.argv = ['test', "-Z=x6", "-Z=yyy9"]
-        cae.add_option('testAppOptChoicesSVWC', 'multi choices', [], short_opt='Z', choices=['6', '9'], multiple=True)
+        cae.add_option('testAppOptChoices_SVW', 'multi choices', [], short_opt='Z', choices=['6', '9'], multiple=True)
 
-        assert cae.get_option('testAppOptChoicesSVWC') == ['x6', 'yyy9']
+        assert cae.get_option('testAppOptChoices_SVW') == ['x6', 'yyy9']
 
     def test_multiple_option_single_char_fail_with_invalid_choices(self, capsys, restore_app_env):
         cae = ConsoleApp('test_multiple_option_fail_with_choices')
