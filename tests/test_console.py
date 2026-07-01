@@ -8,7 +8,7 @@ import sys
 import threading
 import time
 
-from typing import cast, Any
+from typing import Any, cast
 from unittest.mock import patch
 
 from conftest import skip_gitlab_ci, delete_files

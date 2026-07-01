@@ -1,4 +1,4 @@
-# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.77
+# THIS FILE IS EXCLUSIVELY MAINTAINED by the project aedev.project_tpls v0.3.79
 """ setup of ae namespace module portion console: console application environment. """
 import sys
 # noinspection PyUnresolvedReferences
@@ -80,7 +80,7 @@ setup_kwargs = {
     },
     'python_requires': '>=3.12',
     'url': 'https://gitlab.com/ae-group/ae_console',
-    'version': '0.3.95',
+    'version': '0.3.96',
     'zip_safe': True,
 }
 
