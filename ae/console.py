@@ -242,7 +242,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.96'
+__version__ = '0.3.97'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -369,7 +369,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
             self._cfg_files: list = []                                      #: specified/added INI/CFG file paths
             self._main_cfg_fnam: str = os_path_join(os.getcwd(), self.app_name + INI_EXT)
-            """ default main config file <app_name>.INI in the cwd (possibly overwritten by :meth:`.load_cfg_files) """
+            """ default main config file <app_name>.INI in the cwd (possibly overwritten by :meth:`.load_cfg_files`) """
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
             warn_msg = self.add_cfg_files(*additional_cfg_files)
             if warn_msg:
