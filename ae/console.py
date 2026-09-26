@@ -242,7 +242,7 @@ from ae.core import (                                                           
 from ae.literal import Literal                                                              # type: ignore
 
 
-__version__ = '0.3.97'
+__version__ = '0.3.98'
 
 
 MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
@@ -705,7 +705,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
                 self.load_cfg_files(config_modified=False)
                 self.load_user_cfg()  # reload in case a user config variable got changed
 
-            except Exception as ex:                                 # pragma: no cover # pylint: disable=broad-except
+            except Exception as ex:                                 # pylint: disable=broad-except
                 err_msg = msg + f"exception: {ex}"
 
         return err_msg
@@ -748,7 +748,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         """
         # ### THIS METHOD DEF GOT CODED HERE ONLY FOR SPHINX DOCUMENTATION BUILD PURPOSES ###
         # this method gets never called because it gets overwritten with self._arg_parser.add_argument in __init__().
-        self._arg_parser.add_argument(*args, **kwargs)  # pragma: no cover - will never be executed
+        # self._arg_parser.add_argument(*args, **kwargs)  # pragma: no cover - will never be executed
 
     def get_argument(self, name: str) -> Any:
         """ determine the command line parameter value.
@@ -1068,7 +1068,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         if main_app := main_app_instance():     # main_app could be None in some unit tests
             main_app.po()
             main_app.shutdown(255, error_message=error_line)
-        else:                                   # pragma: no cover
+        else:
             print(error_line)                   # print error message if main app got shot down in unit tests
             sys.exit(255, )
 

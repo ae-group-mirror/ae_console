@@ -74,14 +74,14 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
 
         logging.shutdown()
 
-    def test_open_log_file_with_suppressed_stdout(self, capsys, restore_app_env):
+    def test_log_file_open_with_suppressed_stdout(self, capsys, restore_app_env):
         cae = ConsoleApp('test_log_file_rotation', suppress_stdout=True)
         assert cae.suppress_stdout is True
         cae.po("tst_out")
         cae.init_logging()      # close log file
         assert capsys.readouterr()[0] == ""
 
-    def test_open_log_file_with_suppressed_stdout_and_log_file(self, capsys, restore_app_env):
+    def test_log_file_open_with_suppressed_stdout_and_log_file(self, capsys, restore_app_env):
         log_file = 'test_sup_std_out.log'
         tst_out = "tst_out"
         try:
@@ -95,7 +95,7 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             content = delete_files(log_file, ret_type="contents")
             assert tst_out in content[0]
 
-    def test_cae_log_file_rotation(self, restore_app_env):
+    def test_log_file_rotation(self, restore_app_env):
         log_file = 'test_cae_rot_log.log'
         cae = ConsoleApp('test_cae_log_file_rotation',
                          multi_threading=True,
@@ -143,9 +143,6 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
     def test_app_instances_reset2(self):
         assert main_app_instance() is None
 
-    def test_app_instances_reset3(self):
-        assert main_app_instance() is None
-
     def test_log_file_flush(self, restore_app_env):
         log_file = 'test_ae_log_flush.log'
         cae = ConsoleApp('test_log_file_flush', log_file_name=log_file)
@@ -189,8 +186,11 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             assert mp + tst_out + "_2" in contents[0]
             assert sp + tst_out not in contents[0]
 
+    def test_app_instances_reset3(self):
+        assert main_app_instance() is None
+
     @skip_gitlab_ci
-    def disabled___test_threaded_sub_app_logging(self, ___restore_app_env):
+    def test_threaded_sub_app_logging(self, restore_app_env):
         sub_printed = False
         # thread_started_event = threading.Event()
 
@@ -215,7 +215,7 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             sub_thread.start()
             # assert thread_started_event.wait(timeout=6)
             while not sub_printed:  # NOT ENOUGH/failing on gitlab ci with: not sub_app or not sub_app.active_log_stream
-                pass            # wait until sub-thread has called init_logging()/hangs in PyCharm DEBUG test run?!?!?
+                pass  # wait until sub-thread has called init_logging() # could freeze in PyCharm DEBUG test run?!?!?
             print_out(mp + tst_out + "_1")
             mai_app.po(mp + tst_out + "_2")
             assert mai_app is main_app_instance()
@@ -244,6 +244,9 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             assert sp + tst_out in contents[0]
             assert mp + tst_out + "_1" in contents[0]
             assert mp + tst_out + "_2" in contents[0]
+
+    def test_app_instances_reset4(self):
+        assert main_app_instance() is None
 
     def test_exception_log_file_flush(self, restore_app_env):
         cae = ConsoleApp('test_exception_log_file_flush')
@@ -486,6 +489,15 @@ class TestConfigOptions:
 
         cfg_val = cae.get_variable(var_name, section=section_name)
         assert cfg_val == val
+
+    def test_set_variable_with_exception(self, config_fna_vna_vva, restore_app_env):
+        file_name, var_name, _ = config_fna_vna_vva()
+        cae = ConsoleApp('test_set_variable_with_rename', additional_cfg_files=[file_name])
+
+        with patch('ae.console.instantiate_config_parser', side_effect=Exception):
+            err_msg = cae.set_variable('tst_var_name', 'tst_val', cfg_fnam=file_name)
+
+        assert 'exception' in err_msg
 
     def test_set_variable_with_rename(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
@@ -1061,6 +1073,22 @@ class TestConsoleAppBasics:
         out, err = capsys.readouterr()
         assert message in out
         # assert 'test_show_parse_error_and_exit' in out  # displayed by show_help() - failing sometimes ?!?!?
+
+    def test_show_parse_error_and_exit_err(self, capsys, restore_app_env):
+        from ae.core import _APP_INSTANCES  # temp. debugging info - sometimes show_help() does not output ?!?!?
+        print(f"\n\n\n______ PRE {main_app_instance()=} {list(_APP_INSTANCES.items())}")
+        main_app = ConsoleApp('test_show_parse_error_and_exit')
+        print(f"\n\n\n______ POS {main_app_instance()=} {list(_APP_INSTANCES.items())}")
+
+        message = 'any message to be shown at the end of the show help console output'
+
+        with (patch('ae.console.main_app_instance', return_value=None),
+              patch('ae.console.sys.exit') as mock_exit):
+            main_app.show_parse_error_and_exit(message)
+
+        out, err = capsys.readouterr()
+        assert message in out
+        mock_exit.assert_called_once()
 
     def test_sys_env_id(self, capsys, restore_app_env):
         sei = 'tSt'
