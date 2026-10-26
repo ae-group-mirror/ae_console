@@ -65,7 +65,7 @@ configuration files can be shared between apps or used exclusively by one app. t
 and loaded automatically on app initialization:
 
 +----------------------------+---------------------------------------------------+
-|  config file               |  used for .... config variables and options       |
+|  config file               |  used for config variables and options            |
 +============================+===================================================+
 | <any_path_name_and_ext>    |  application/domain specific                      |
 +----------------------------+---------------------------------------------------+
@@ -113,9 +113,8 @@ config file with two config sections containing one config option (named `log_fi
 
 .. _config-main-section:
 
-the config section `aeOptions` (defined by :data:`MAIN_SECTION_NAME`) is the default or main section, storing the
-fallback values of any pre-defined :ref:`command line config option <config-options>` and of some
-:ref:`config variables <config-variables>`.
+the config section `aeOptions` is the default or main section, storing the fallback values of any pre-defined
+:ref:`command line config option <config-options>` and of some :ref:`config variables <config-variables>`.
 
 
 .. _config-variables:
@@ -156,7 +155,7 @@ config options and their default value are getting defined via the :meth:`~Conso
 of the main :class:`ConsoleApp` instance. if the fallback/default value you specify in this call is
 either `None` or :data:`~ae.base.UNSET` then the resulting default value will be searched first in the
 OS environment variables and then in the config files, similar like for any other config variable
-(but with the section name fixed to :data:`aeOptions <MAIN_SECTION_NAME>`).
+(but with the section name fixed to 'aeOptions').
 
 .. hint::
     the value type of a config option can be fixed on their definition via the :paramref:`~ConsoleApp.add_option.value`
@@ -232,20 +231,18 @@ from configparser import ConfigParser, NoSectionError
 from typing import Any
 
 from ae.base import (                                                                       # type: ignore
-    CFG_EXT, DATE_TIME_ISO, DATE_ISO, INI_EXT, UnsetType, UNSET,
-    env_str, norm_name, os_path_isfile, os_path_join)
-from ae.system import instantiate_config_parser, os_user_name, sys_env_dict, sys_env_text   # type: ignore
-from ae.paths import PATH_PLACEHOLDERS, normalize, Collector  # type: ignore
-# noinspection PyProtectedMember
-from ae.core import (                                                                       # type: ignore # for mypy
-    DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, main_app_instance, _LOGGER as APP_LOGGER, AppBase)
+    DATE_TIME_ISO, DATE_ISO, UnsetType, UNSET,
+    env_str, norm_name, os_path_getmtime, os_path_isfile, os_path_join)
 from ae.literal import Literal                                                              # type: ignore
+from ae.system import instantiate_config_parser, os_user_name, sys_env_dict, sys_env_text   # type: ignore
+from ae.paths import PATH_PLACEHOLDERS, normalize, Collector                                # type: ignore
+# noinspection PyProtectedMember
+from ae.core import (                                                                       # type: ignore
+    DEBUG_LEVEL_VERBOSE, DEBUG_LEVELS, main_app_instance, _LOGGER as APP_LOGGER, AppBase)
 
 
-__version__ = '0.3.98'
+__version__ = '0.3.99'
 
-
-MAIN_SECTION_NAME: str = 'aeOptions'            #: default name of the main config section
 
 USER_NAME_MAX_LEN = 12                          #: maximum length of a `username/id <ae.console.ConsoleApp.user_id>`
 
@@ -339,9 +336,9 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
                                         the default value of this argument is :data:`~ae.core.DEBUG_LEVEL_DISABLED`.
 
-        :param multi_threading:         pass True if this instance is used in a multi-threading app.
+        :param multi_threading:         pass `True` if this instance is used in a multi-threading app.
 
-        :param suppress_stdout:         pass True (for wsgi apps) to prevent any python print outputs to stdout.
+        :param suppress_stdout:         pass `True` (for wsgi apps) to prevent any python print outputs to stdout.
 
         :param cfg_opt_eval_vars:       dict of additional application-specific data values that are used in eval
                                         expressions (e.g., AcuSihotMonitor.ini).
@@ -356,7 +353,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         """
         self._user_id = ''
         if not sys_env_id:
-            sys_env_id = env_str(MAIN_SECTION_NAME + '_sys_env_id', convert_name=True) or ''
+            sys_env_id = env_str('aeOptions' + '_sys_env_id', convert_name=True) or ''
 
         super().__init__(app_title=app_title, app_name=app_name, app_version=app_version, sys_env_id=sys_env_id,
                          debug_level=debug_level, multi_threading=multi_threading, suppress_stdout=suppress_stdout)
@@ -368,7 +365,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
             self.cfg_opt_eval_vars: dict = cfg_opt_eval_vars or {}          #: app-specific vars for init of cfg options
 
             self._cfg_files: list = []                                      #: specified/added INI/CFG file paths
-            self._main_cfg_fnam: str = os_path_join(os.getcwd(), self.app_name + INI_EXT)
+            self._main_cfg_fnam: str = os_path_join(os.getcwd(), self.app_name + '.ini')
             """ default main config file <app_name>.INI in the cwd (possibly overwritten by :meth:`.load_cfg_files`) """
             self._main_cfg_mod_time: float = 0.0                            #: main config file modification datetime
             warn_msg = self.add_cfg_files(*additional_cfg_files)
@@ -412,13 +409,13 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
         override this method to add module-/app-specific config vars that can be set individually per user.
         """
-        self.user_specific_cfg_vars |= {(MAIN_SECTION_NAME, 'debug_level')}
+        self.user_specific_cfg_vars |= {('aeOptions', 'debug_level')}
 
     def _init_logging(self, logging_params: dict[str, Any]) -> str | None:
         """ determine and init logging config.
 
         :param logging_params:      logging config dict that will be amended with cfg values.
-        :return:                    None if py logging is active, log file name if ae logging is set in cfg or args
+        :return:                    `None` if py logging is active, log file name if ae logging is set in cfg or args
                                     or empty string if no logging got configured in cfg/args.
 
         the logging configuration can be specified in several alternative places. the precedence
@@ -520,10 +517,10 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         std_search_paths = ("{cwd}", "{usr}", "{ado}", )    # reversed - latter config file var overwrites former
         coll = Collector(main_app_name=self.app_name)
         coll.collect("{cwd}/../..", "{cwd}/..", *std_search_paths,
-                     append=(".app_env" + CFG_EXT,
-                             ".sys_env" + CFG_EXT,
-                             ".sys_env" + (self.sys_env_id or "TEST") + CFG_EXT,))
-        coll.collect(*std_search_paths, append=("{app_name}" + CFG_EXT, "{app_name}" + INI_EXT))
+                     append=(".app_env" + '.cfg',
+                             ".sys_env" + '.cfg',
+                             ".sys_env" + (self.sys_env_id or "TEST") + '.cfg',))
+        coll.collect(*std_search_paths, append=("{app_name}" + '.cfg', "{app_name}" + '.ini'))
         if additional_cfg_files:
             coll.collect(*std_search_paths, select=additional_cfg_files)
 
@@ -567,14 +564,14 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
     def load_cfg_files(self, config_modified: bool = True):
         """  (re)load and parse all config files.
 
-        :param config_modified:     pass False to prevent the refresh/overwrite the initial config file modified date.
+        :param config_modified:     pass `False` to prevent the refresh/overwrite the initial config file modified date.
         """
         with config_lock:
             for cfg_fnam in reversed(self._cfg_files):
-                if cfg_fnam.endswith(INI_EXT) and os_path_isfile(cfg_fnam):
+                if cfg_fnam.endswith('.ini') and os_path_isfile(cfg_fnam):
                     self._main_cfg_fnam = cfg_fnam
                     if config_modified:
-                        self._main_cfg_mod_time = os.path.getmtime(cfg_fnam)
+                        self._main_cfg_mod_time = os_path_getmtime(cfg_fnam)
                     break
 
             self._cfg_parser = instantiate_config_parser()      # new instance needed in case of renamed config var
@@ -583,13 +580,12 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
     def is_main_cfg_file_modified(self) -> bool:
         """ determine if the main config file got modified.
 
-        :return:    True if the content of the main config file got modified/changed.
+        :return:    `True` if the content of the main config file got modified/changed.
         """
         with config_lock:
-            return os.path.getmtime(self._main_cfg_fnam) > self._main_cfg_mod_time \
+            return os_path_getmtime(self._main_cfg_fnam) > self._main_cfg_mod_time \
                 if self._main_cfg_fnam and self._main_cfg_mod_time else False
 
-    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def get_variable(self, name: str, section: str | None = None, default_value: Any | None = None,
                      cfg_parser: ConfigParser | None = None, value_type: type | None = None) -> Any:
         """ determine value of a config option, an OS environ variable or a config variable.
@@ -597,7 +593,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         :param name:            name of a :ref:`config option <config-options>` or of an existing/declared
                                 :ref:`config variable <config-variables>`.
         :param section:         name of the :ref:`config section <config-sections>`. defaulting to the app options
-                                section (:data:`MAIN_SECTION_NAME`) if not specified or if None or empty string passed.
+                                section ('aeOptions') if not specified or if `None` or empty string passed.
                                 if :paramref:`~get_variable.name` specifies a user-specific config option, then its
                                 value will get retrieved from the user-specific section (section name gets then
                                 extended with the help of the :meth:`.user_section` method).
@@ -612,7 +608,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
                                 * **config option** with a name equal to the :paramref:`~get_variable.name` argument
                                   (only if the passed :paramref:`~get_variable.section` value is either empty,
-                                  None or equal to :data:`MAIN_SECTION_NAME`). if the default value of a config option
+                                  `None` or equal to 'aeOptions'). if the default value of a config option
                                   (specified in the :meth:`~ConsoleApp.add_option` call to define it) is either `None`,
                                   :data:`~ae.base.UNSET` or an empty string then the value will be searched in the
                                   OS environment and the config files.
@@ -631,8 +627,8 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
                                 if no variable value could be found, then a `None` value will be returned.
         """
         val = None
-        section = section or MAIN_SECTION_NAME
-        if name in self.cfg_options and section == MAIN_SECTION_NAME:
+        section = section or 'aeOptions'
+        if name in self.cfg_options and section == 'aeOptions':
             val = default_value = self.cfg_options[name].value
 
         if val is None or val is UNSET or val == "":
@@ -660,7 +656,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
 
         if the passed string in :paramref:`~set_variable.name` is the id of a defined
         :ref:`config option <config-options>` and :paramref:`~set_variable.section` is either empty or
-        equal to the value of :data:`MAIN_SECTION_NAME` then the value of this
+        equal to the value of 'aeOptions' then the value of this
         config option will be changed too.
 
         if the section does not exist, it will be created (in a contrary to Pythons ConfigParser).
@@ -670,14 +666,14 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
                                 :paramref:`~set_variable.name` argument.
         :param cfg_fnam:        file name (def= :attr:`~ConsoleApp._main_cfg_fnam`) to save the new option value to.
         :param section:         name of the :ref:`config section <config-sections>`. defaulting to the app options
-                                section (:data:`MAIN_SECTION_NAME`) if not specified or if None or empty string passed.
+                                section ('aeOptions') if not specified or if `None` or empty string passed.
         :param old_name:        old name/option_id that has to be removed (used to rename config option name/key).
         :return:                empty string on success else error message text.
         """
         msg = f"****  ConsoleApp.set_variable({name=!r}, {value=!r}) "
         cfg_fnam = cfg_fnam or self._main_cfg_fnam
-        section = section or MAIN_SECTION_NAME
-        if section == MAIN_SECTION_NAME:
+        section = section or 'aeOptions'
+        if section == 'aeOptions':
             self._change_option(name, value)
         if name != 'user_id':
             section = self.user_section(section, name)
@@ -772,18 +768,18 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         :param value:       last fallback/default value to be returned by :meth:`.get_option` and
                             :meth:`.get_variable` if this option is not specified as a command line argument
                             and in the config files of the main app.
-                            pass `UNSET` to define a boolean flag option, which then can be specified without a value
-                            on the command line in order to result as `True`, and else as `False`.
+                            pass :data:`~ae.base.UNSET` to define a boolean flag option, which then can be specified
+                            without a value on the command line in order to result as `True`, and else as `False`.
                             pass `'++'` to add a 'count' action option, which can be specified multiple times, and its
                             option value is the number of times it get specified.
-                            specifying a value on the command line for an option added with an `UNSET` or `'++'`
-                            argument results in an argument parsing error and `SystemExit`.
+                            specifying a value on the command line for an option added with an :data:`~ae.base.UNSET`
+                            or `'++'` argument results in an argument parsing error and `SystemExit`.
         :param short_opt:   short option character. if not passed or passed as '' then the first character of the name
-                            will be used. passing `UNSET` or `None` prevents the declaration of a short option. please
-                            note that the short options 'h', 'D' and 'L' are already used internally by the classes
-                            :class:`~argparse.ArgumentParser` and :class:`ConsoleApp`.
+                            will be used. passing :data:`~ae.base.UNSET` or `None` prevents the declaration of a short
+                            option. please note that the short options 'h', 'D' and 'L' are already used internally by
+                            the classes :class:`~argparse.ArgumentParser` and :class:`ConsoleApp`.
         :param choices:     optional list of valid option values (default=allow all values).
-        :param multiple:    pass True if the option can be added multiple times to the command line (default=False).
+        :param multiple:    pass `True` if the option can be added multiple times to the command line (default=`False`).
         :param add_kwargs:  additional kwargs to be passed onto :meth:`ArgsParser.add_argument`.
 
         .. hint::
@@ -809,8 +805,8 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         # determine the config value to use as default for command line arg
         default_val = False if value is UNSET else 0 if value == '++' else value
         option = Literal(literal_or_value=default_val, name=name)
-        # alt: cfg_val = self._get_cfg_parser_val(name, self.user_section(MAIN_SECTION_NAME, name), default_value=value)
-        cfg_val = self.get_variable(name, section=MAIN_SECTION_NAME, default_value=default_val)
+        # alt: cfg_val = self._get_cfg_parser_val(name, self.user_section('aeOptions', name), default_value=value)
+        cfg_val = self.get_variable(name, section='aeOptions', default_value=default_val)
         option.value = cfg_val
         kwargs = {'help': desc, 'default': cfg_val}
         if value is UNSET:
@@ -846,7 +842,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         :return:                the first found value of the specified option (:paramref:`~ConsoleApp.get_option.name`).
                                 the returned value has the same type as the value specified in the :meth:`.add_option`
                                 call. if not given on the command line, then it gets search next in the default config
-                                section (:data:`MAIN_SECTION_NAME`) of the collected config files (the exact search
+                                section ('aeOptions') of the collected config files (the exact search
                                 order is documented in the doc-string of the method :meth:`~ConsoleApp.add_cfg_files`).
                                 if not found in the config file, then the default value specified of the option
                                 definition (the :meth:`.add_option` call) will be used. the other default value,
@@ -865,7 +861,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         :param value:           new value to assign to the option, identified by :paramref:`~set_option.name`.
         :param cfg_fnam:        the config file name to save the new option value. if not specified, then the
                                 default file name of :meth:`~ConsoleApp.set_variable` will be used.
-        :param save_to_config:  pass False to prevent saving the new option value to the main/specified config file.
+        :param save_to_config:  pass `False` to prevent saving the new option value to the main/specified config file.
                                 the value of the config option will be changed in any case.
         :return:                ''/empty string on success else error message text.
         """
@@ -954,10 +950,10 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
         """ register/reset the specified or current user, creating/copying a new set of user-specific config vars.
 
         :param new_user_id:     user id to register. if not specified, then register the current os user (self.user_id).
-        :param reset_cfg_vars:  pass True to reset the user-specific-variables to the default values.
-        :param set_as_default:  pass False to not set the specified user id as default for the next app run/start.
+        :param reset_cfg_vars:  pass `True` to reset the user-specific-variables to the default values.
+        :param set_as_default:  pass `False` to not set the specified user id as default for the next app run/start.
         :raises AssertionError: if the specified/current user id/name is empty, too long or contains invalid characters.
-        :return:                True if the specified or the current os user id/name was not registered, else False.
+        :return:                `True` if the specified or the current os user id/name was not registered, else `False`.
         """
         user_id = new_user_id or self.user_id
         assert user_id, f" ***  cannot register user with empty user name/id; {self.user_id=} {new_user_id=}"
@@ -1073,7 +1069,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
             sys.exit(255, )
 
     def chk(self, error_code: int, check_result: bool, error_message: str):
-        """ exit/quit this console app if the `check_result` argument is False and the `force` app option is zero/False.
+        """ exit/quit this app if the `check_result` argument is `False` and the `force` app option is zero/`False`.
 
         :param error_code:      used OS app exit error code on app exit/quit/shutdown.
         :param check_result:    result of the app run check/assertion.
@@ -1090,7 +1086,7 @@ class ConsoleApp(AppBase):      # pylint: disable=too-many-public-methods,too-ma
     def shutdown(self, exit_code: int | None = 0, error_message: str = "", timeout: float | None = None):
         """ shutdown this ConsoleApp instance, and also any created sub-app-instances.
 
-        :param exit_code:       optional OS exit code (def=0). pass None to prevent call of sys.exit(exit_code).
+        :param exit_code:       optional OS exit code (def=0). pass `None` to prevent call of sys.exit(exit_code).
                                 if exit code is between 1 and 9 then the help message is printed to the console/shell.
         :param error_message:   optional shutdown error message.
         :param timeout:         optional timeout float value in seconds used for the thread termination/joining, for the
