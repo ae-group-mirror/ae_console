@@ -13,7 +13,9 @@ from unittest.mock import patch
 
 from conftest import skip_gitlab_ci, delete_files
 
-from ae.base import DATE_ISO, DATE_TIME_ISO, INI_EXT, UNSET, norm_name, write_file
+from ae.base import (
+    DATE_ISO, DATE_TIME_ISO, UNSET,
+    norm_name, os_path_basename, os_path_isfile, os_path_join, os_path_realpath, os_path_splitext, write_file)
 from ae.system import os_user_name
 from ae.paths import normalize
 # noinspection PyProtectedMember
@@ -21,19 +23,19 @@ from ae.core import (DEBUG_LEVEL_DISABLED, DEBUG_LEVEL_VERBOSE, MAX_NUM_LOG_FILE
                      activate_multi_threading, _deactivate_multi_threading, main_app_instance, print_out)
 
 
-from ae.console import MAIN_SECTION_NAME, USER_NAME_MAX_LEN, config_value_string, ConsoleApp
+from ae.console import USER_NAME_MAX_LEN, config_value_string, ConsoleApp
 
 
 @pytest.fixture
 def config_fna_vna_vva(request):
     """ prepare config test files """
-    def _setup_and_teardown(file_name="test_config" + INI_EXT, var_name='test_config_var',
+    def _setup_and_teardown(file_name="test_config" + '.ini', var_name='test_config_var',
                             var_value: Any = 'test_value', additional_line: str = ""):
         file_name = normalize(file_name)
-        write_file(file_name, f"[{MAIN_SECTION_NAME}]\n{var_name} = {var_value}\n{additional_line}", make_dirs=True)
+        write_file(file_name, f"[{'aeOptions'}]\n{var_name} = {var_value}\n{additional_line}", make_dirs=True)
 
         def _tear_down():               # using yield instead of finalizer does not execute the teardown part
-            if os.path.exists(file_name):       # some tests are deleting the config file explicitly
+            if os_path_isfile(file_name):       # some tests are deleting the config file explicitly
                 os.remove(file_name)
         request.addfinalizer(_tear_down)
 
@@ -89,7 +91,7 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             assert cae.suppress_stdout is True
             cae.po(tst_out)
             cae.init_logging()      # close log file
-            assert os.path.exists(log_file)
+            assert os_path_isfile(log_file)
             assert capsys.readouterr()[0] == ""
         finally:
             content = delete_files(log_file, ret_type="contents")
@@ -109,7 +111,7 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
                 for line_no in range(16):     # full loop is creating 1 kb of log entries (16 * 64 bytes)
                     cae.po("TestCaeLogEntry{: >26}{: >26}".format(idx, line_no))
             cae.init_logging()      # close log file
-            assert os.path.exists(log_file)
+            assert os_path_isfile(log_file)
         finally:
             assert delete_files(log_file, keep_ext=True) >= MAX_NUM_LOG_FILES
 
@@ -130,11 +132,11 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
         try:
             assert cfg_val == var_val
             assert cae.get_variable(var_name) == var_val
-            assert cae._log_file_name == os.path.realpath(cfg_val['log_file_name'])
-            assert not os.path.exists(cfg_val['log_file_name'])
+            assert cae._log_file_name == os_path_realpath(cfg_val['log_file_name'])
+            assert not os_path_isfile(cfg_val['log_file_name'])
 
             cae.po(log_msg)
-            assert os.path.exists(cfg_val['log_file_name'])
+            assert os_path_isfile(cfg_val['log_file_name'])
 
             logging.shutdown()
         finally:
@@ -150,7 +152,7 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             sys.argv = [restore_app_env, ]
             file_name_chk = cae.get_option('log_file')   # has to be called at least once to create log file
             assert file_name_chk == log_file
-            assert os.path.exists(log_file)
+            assert os_path_isfile(log_file)
         finally:
             assert delete_files(log_file) == 1
 
@@ -172,8 +174,8 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             # NOT WORKING: capsys.readouterr() returning empty strings
             # out, err = capsys.readouterr()
             # assert out.count(tst_out) == 3 and err == ""
-            assert os.path.exists(mp + log_file)
-            assert os.path.exists(sp + log_file)
+            assert os_path_isfile(mp + log_file)
+            assert os_path_isfile(sp + log_file)
         finally:
             contents = delete_files(sp + log_file, ret_type='contents')
             assert len(contents)
@@ -230,9 +232,9 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
             # noinspection PyUnreachableCode
             mai_app.init_logging()  # close main-app log file
             # noinspection PyUnreachableCode
-            assert os.path.exists(sp + log_file)
+            assert os_path_isfile(sp + log_file)
             # noinspection PyUnreachableCode
-            assert os.path.exists(mp + log_file)
+            assert os_path_isfile(mp + log_file)
         finally:
             contents = delete_files(mp + log_file, ret_type='contents')
             assert len(contents)
@@ -260,7 +262,7 @@ class TestLogging:      # more detailed logging tests are done in unit tests of 
 
 class TestConfigOptions:
     def test_missing_cfg_file(self, restore_app_env):
-        file_name = 'm_i_s_s_i_n_g' + INI_EXT
+        file_name = 'm_i_s_s_i_n_g' + '.ini'
         cae = ConsoleApp('test_missing_cfg_file', additional_cfg_files=[file_name])
         assert not [f for f in cae._cfg_files if f.endswith(file_name)]
 
@@ -358,18 +360,18 @@ class TestConfigOptions:
 
     @skip_gitlab_ci     # skip on gitlab because it does not provide user/home ~/.config folder
     def test_get_variable_file_order(self, restore_app_env, config_fna_vna_vva):
-        cwd_file, var_name, cwd_value = config_fna_vna_vva(file_name='test' + INI_EXT, var_value='cwd')
+        cwd_file, var_name, cwd_value = config_fna_vna_vva(file_name='test' + '.ini', var_value='cwd')
         cae = ConsoleApp('test_get_variable_file_order', app_name='test')  # not needed: additional_cfg_files=[cwd_file]
         assert cae.get_variable(var_name) == cwd_value                  # cwd variable
 
-        usr_file, _, usr_value = config_fna_vna_vva(file_name='{usr}/test' + INI_EXT, var_value='usr')
+        usr_file, _, usr_value = config_fna_vna_vva(file_name='{usr}/test' + '.ini', var_value='usr')
         assert usr_file != cwd_file
         cae.add_cfg_files()
         cae.load_cfg_files()
         assert cae.get_variable(var_name) == usr_value                       # usr variable overwrite cwd variable
 
         app_path = normalize("{ado}")   # home/Documents/test will not be removed after test run!
-        app_file, _, app_value = config_fna_vna_vva(file_name='{ado}/test' + INI_EXT, var_value='ado')
+        app_file, _, app_value = config_fna_vna_vva(file_name='{ado}/test' + '.ini', var_value='ado')
         assert app_file != cwd_file and app_file != usr_file
         assert app_path.startswith(app_path)
         cae.add_cfg_files()
@@ -404,7 +406,7 @@ class TestConfigOptions:
         assert cae.get_option('debug_level') == DEBUG_LEVEL_VERBOSE
 
     def test_set_variable_basics(self, restore_app_env, config_fna_vna_vva):
-        file_name, var_name, _ = config_fna_vna_vva(file_name='test' + INI_EXT)
+        file_name, var_name, _ = config_fna_vna_vva(file_name='test' + '.ini')
 
         opt_test_val = 'opt_test_val'
         sys.argv = ['test', '-t=' + opt_test_val]
@@ -457,7 +459,7 @@ class TestConfigOptions:
         file_name, var_name, _ = config_fna_vna_vva()
         cae = ConsoleApp('test_set_variable_file_error', additional_cfg_files=[file_name])
         val = 'tt_value'
-        assert cae.set_variable(var_name, val, cfg_fnam=os.path.join(os.getcwd(), 'not_existing' + INI_EXT))
+        assert cae.set_variable(var_name, val, cfg_fnam=os_path_join(os.getcwd(), 'not_existing' + '.ini'))
 
     def test_set_variable_while_file_opened(self, config_fna_vna_vva, restore_app_env):
         file_name, var_name, _ = config_fna_vna_vva()
@@ -938,14 +940,14 @@ class TestConfigOptions:
 
     def test_config_main_file_not_modified(self, config_fna_vna_vva, restore_app_env):
         config_fna_vna_vva(
-            file_name=os.path.join(os.getcwd(), os.path.splitext(os.path.basename(sys.argv[0]))[0] + INI_EXT))
+            file_name=os_path_join(os.getcwd(), os_path_splitext(os_path_basename(sys.argv[0]))[0] + '.ini'))
         cae = ConsoleApp('test_config_modified_after_startup')
 
         assert not cae.is_main_cfg_file_modified()
 
     def test_is_main_cfg_file_modified(self, config_fna_vna_vva, restore_app_env):
-        app_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-        file_name, var_name, old_var_val = config_fna_vna_vva(file_name=os.path.join(os.getcwd(), app_name + INI_EXT))
+        app_name = os_path_splitext(os_path_basename(sys.argv[0]))[0]
+        file_name, var_name, old_var_val = config_fna_vna_vva(file_name=os_path_join(os.getcwd(), app_name + '.ini'))
 
         cae = ConsoleApp('test_set_var_with_reload', app_name=app_name)  # not needed: additional_cfg_files=[file_name]
         time.sleep(.963)    # needed because Python is too quick, especially on github-ci (fails sometimes with 0.639)
@@ -971,7 +973,7 @@ class TestConfigOptions:
     def test_cfg_section_variable_names(self, restore_app_env, config_fna_vna_vva):
         file_name, var_name, _old_var_val = config_fna_vna_vva()
         cae = ConsoleApp(additional_cfg_files=[file_name])
-        var_names = cae.cfg_section_variable_names(MAIN_SECTION_NAME)
+        var_names = cae.cfg_section_variable_names('aeOptions')
 
         assert var_name in var_names
 
@@ -1310,7 +1312,7 @@ class TestUser:
         assert isinstance(cae.user_specific_cfg_vars, set)
 
     def test_load_user_cfg_user_specific_cfg_vars_users_from_cfg(self, restore_app_env, config_fna_vna_vva):
-        usr_vars = {(MAIN_SECTION_NAME, 'tst_var')}
+        usr_vars = {('aeOptions', 'tst_var')}
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(usr_vars),
                                                            additional_line=f"registered_users = {dict(usr={})!r}")
         cae = ConsoleApp(additional_cfg_files=(file_name, ))
@@ -1334,7 +1336,7 @@ class TestUser:
     def test_register_user(self, restore_app_env, config_fna_vna_vva):
         usr_var_name = 'tst_usr_var'
         usr_var_val = 'tst_usr_var_val'
-        usr_vars = {(MAIN_SECTION_NAME, usr_var_name)}
+        usr_vars = {('aeOptions', usr_var_name)}
         file_name, _var_name, var_val = config_fna_vna_vva(var_name='user_specific_cfg_vars', var_value=repr(usr_vars),
                                                            additional_line=f"{usr_var_name} = {usr_var_val!r}")
         cae = ConsoleApp(additional_cfg_files=[file_name])
